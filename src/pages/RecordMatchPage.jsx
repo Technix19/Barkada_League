@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import MatchForm from '../components/organisms/MatchForm.jsx'
-import * as api from '../services/mockApi.js'
+import * as api from '../services/api.js'
 import { todayLocalDate } from '../utils/formatDate.js'
 
 export default function RecordMatchPage() {
@@ -43,8 +43,8 @@ export default function RecordMatchPage() {
           updatedPlayerIds: [Number(formData.player1Id), Number(formData.player2Id)],
         },
       })
-    } catch {
-      setSubmitError('Could not save this match. Please check the form and try again.')
+    } catch (err) {
+      setSubmitError(err.message || 'Could not save this match. Please check the form and try again.')
     } finally {
       setSubmitting(false)
     }

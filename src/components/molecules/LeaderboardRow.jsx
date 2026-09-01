@@ -4,7 +4,7 @@ import TrophyIcon from '../atoms/TrophyIcon.jsx'
 import { formatPercentage, formatStreak } from '../../utils/formatPercentage.js'
 
 export default function LeaderboardRow({ entry, highlight = false }) {
-  const streakVariant = entry.currentStreak.type === 'W' ? 'win' : entry.currentStreak.type === 'L' ? 'loss' : 'neutral'
+  const streakVariant = entry.currentStreak?.type === 'W' ? 'win' : entry.currentStreak?.type === 'L' ? 'loss' : 'neutral'
   const rowClass = [entry.rank === 1 ? 'is-rank-1' : '', highlight ? 'updated-row' : '']
     .filter(Boolean)
     .join(' ')

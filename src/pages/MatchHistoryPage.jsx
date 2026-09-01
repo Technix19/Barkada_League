@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Select from '../components/atoms/Select.jsx'
 import MatchCard from '../components/molecules/MatchCard.jsx'
-import * as api from '../services/mockApi.js'
+import * as api from '../services/api.js'
 
 export default function MatchHistoryPage() {
   const location = useLocation()

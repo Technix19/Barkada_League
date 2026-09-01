@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Select from '../components/atoms/Select.jsx'
 import LeaderboardTable from '../components/organisms/LeaderboardTable.jsx'
 import RecentMatches from '../components/organisms/RecentMatches.jsx'
-import * as api from '../services/mockApi.js'
+import * as api from '../services/api.js'
 
 export default function LeaderboardPage() {
   const location = useLocation()

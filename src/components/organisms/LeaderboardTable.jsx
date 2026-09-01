@@ -35,7 +35,7 @@ export default function LeaderboardTable({ standings, highlightPlayerIds = [] })
       <div className="leaderboard-cards">
         {standings.map((entry) => {
           const streakVariant =
-            entry.currentStreak.type === 'W' ? 'win' : entry.currentStreak.type === 'L' ? 'loss' : 'neutral'
+            entry.currentStreak?.type === 'W' ? 'win' : entry.currentStreak?.type === 'L' ? 'loss' : 'neutral'
           const rankClass = entry.rank === 1 ? ' is-rank-1' : ''
           const highlightClass = highlightPlayerIds.includes(entry.playerId) ? ' updated-row' : ''
           return (

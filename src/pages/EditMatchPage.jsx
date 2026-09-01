@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import MatchForm from '../components/organisms/MatchForm.jsx'
-import * as api from '../services/mockApi.js'
+import * as api from '../services/api.js'
 
 export default function EditMatchPage() {
   const { id } = useParams()
@@ -45,8 +45,8 @@ export default function EditMatchPage() {
     try {
       await api.updateMatch(id, formData)
       navigate('/matches', { state: { updatedMatchId: Number(id) } })
-    } catch {
-      setSubmitError('Could not save changes. Please check the form and try again.')
+    } catch (err) {
+      setSubmitError(err.message || 'Could not save changes. Please check the form and try again.')
     } finally {
       setSubmitting(false)
     }

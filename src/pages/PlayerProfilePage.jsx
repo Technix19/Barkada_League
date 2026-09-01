@@ -4,7 +4,7 @@ import Select from '../components/atoms/Select.jsx'
 import Badge from '../components/atoms/Badge.jsx'
 import StatCard from '../components/molecules/StatCard.jsx'
 import MatchCard from '../components/molecules/MatchCard.jsx'
-import * as api from '../services/mockApi.js'
+import * as api from '../services/api.js'
 import { formatJoinMonth } from '../utils/formatDate.js'
 import { formatPercentage, formatStreak } from '../utils/formatPercentage.js'
 
