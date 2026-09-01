@@ -1,0 +1,59 @@
+:root {
+  color-scheme: light dark;
+
+  --color-primary: #1d6f52;
+  --color-primary-hover: #175a42;
+  --color-accent: #e0a51c;
+  --color-bg: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-text: #1c1e1c;
+  --color-muted: #63685f;
+  --color-border: #e1e2dd;
+  --color-danger: #b3311f;
+  --color-danger-hover: #8f2718;
+  --color-win: #1d6f52;
+  --color-loss: #b3311f;
+  --color-focus-ring: #1d6f52;
+
+  --font-sans: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+
+  --font-size-sm: 0.8125rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.75rem;
+  --font-size-2xl: 2.25rem;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  --max-width: 1080px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #3fae86;
+    --color-primary-hover: #59c69c;
+    --color-accent: #f0bb47;
+    --color-bg: #14161a;
+    --color-surface: #1c1f24;
+    --color-text: #eef0ec;
+    --color-muted: #9aa09a;
+    --color-border: #2c2f34;
+    --color-danger: #e2564a;
+    --color-danger-hover: #ef7267;
+    --color-win: #3fae86;
+    --color-loss: #e2564a;
+    --color-focus-ring: #59c69c;
+  }
+}
