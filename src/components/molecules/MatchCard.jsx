@@ -7,12 +7,14 @@ export default function MatchCard({
   match,
   showActions = false,
   perspectivePlayerId = null,
+  highlight = false,
   isPendingDelete = false,
   onDeleteClick,
   onConfirmDelete,
   onCancelDelete,
 }) {
   const { player1, player2, player1Score, player2Score, winnerId, playedAt } = match
+  const cardClass = `match-card${highlight ? ' updated-row' : ''}`
 
   if (perspectivePlayerId != null) {
     const isPlayer1 = String(player1.id) === String(perspectivePlayerId)
@@ -22,53 +24,52 @@ export default function MatchCard({
     const won = String(winnerId) === String(perspectivePlayerId)
 
     return (
-      <div className="match-card">
-        <div className="match-card-date">{formatDate(playedAt)}</div>
-        <div className="match-card-score-row">
-          <Badge variant={won ? 'win' : 'loss'} className="match-card-perspective">
-            {won ? 'W' : 'L'}
-          </Badge>
-          <span className="match-card-player">
-            vs{' '}
-            <Link to={`/players/${opponent.id}`} className="leaderboard-player-link">
-              {opponent.name}
-            </Link>
-          </span>
-          <span className="match-card-score">
-            {ownScore} - {opponentScore}
-          </span>
+      <div className={cardClass}>
+        <div className="match-card-row">
+          <span className="match-card-date">{formatDate(playedAt)}</span>
+          <div className="match-card-matchup">
+            <Badge variant={won ? 'win' : 'loss'} className="match-card-perspective">
+              {won ? 'W' : 'L'}
+            </Badge>
+            <span className="match-card-player">
+              vs{' '}
+              <Link to={`/players/${opponent.id}`} className="leaderboard-player-link">
+                {opponent.name}
+              </Link>
+            </span>
+            <span className="match-card-score">
+              {ownScore} - {opponentScore}
+            </span>
+          </div>
         </div>
       </div>
     )
   }
 
-  const winnerName = String(winnerId) === String(player1.id) ? player1.name : player2.name
+  const p1Winner = String(winnerId) === String(player1.id)
+  const p2Winner = String(winnerId) === String(player2.id)
 
   return (
-    <div className="match-card">
-      <div className="match-card-date">{formatDate(playedAt)}</div>
-      <div className="match-card-score-row">
-        <span className={`match-card-player${String(winnerId) === String(player1.id) ? ' winner' : ''}`}>
-          <Link to={`/players/${player1.id}`} className="leaderboard-player-link">
-            {player1.name}
-          </Link>
-        </span>
-        <span className="match-card-score">
-          {player1Score} - {player2Score}
-        </span>
-        <span
-          className={`match-card-player match-card-player-right${
-            String(winnerId) === String(player2.id) ? ' winner' : ''
-          }`}
-        >
-          <Link to={`/players/${player2.id}`} className="leaderboard-player-link">
-            {player2.name}
-          </Link>
-        </span>
-      </div>
+    <div className={cardClass}>
+      <div className="match-card-row">
+        <span className="match-card-date">{formatDate(playedAt)}</span>
 
-      <div className="match-card-footer">
-        <span className="match-card-winner">Winner: {winnerName}</span>
+        <div className="match-card-matchup">
+          <span className={`match-card-player${p1Winner ? ' winner' : ''}`}>
+            <Link to={`/players/${player1.id}`} className="leaderboard-player-link">
+              {player1.name}
+            </Link>
+          </span>
+          <span className="match-card-score">
+            {player1Score} - {player2Score}
+          </span>
+          <span className={`match-card-player match-card-player-right${p2Winner ? ' winner' : ''}`}>
+            <Link to={`/players/${player2.id}`} className="leaderboard-player-link">
+              {player2.name}
+            </Link>
+          </span>
+        </div>
+
         {showActions && (
           <div className="match-card-actions">
             <Link to={`/matches/${match.id}/edit`} className="btn btn-secondary btn-sm">

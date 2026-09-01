@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import TrophyIcon from '../atoms/TrophyIcon.jsx'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Leaderboard', end: true },
@@ -14,6 +15,7 @@ export default function Header() {
     <header className="header">
       <div className="container header-inner">
         <NavLink to="/" className="brand" onClick={() => setMenuOpen(false)}>
+          <TrophyIcon size={20} className="brand-icon" />
           Barkada League
         </NavLink>
 

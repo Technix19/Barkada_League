@@ -1,9 +1,26 @@
 import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import Select from '../components/atoms/Select.jsx'
 import MatchCard from '../components/molecules/MatchCard.jsx'
 import * as api from '../services/mockApi.js'
 
 export default function MatchHistoryPage() {
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // Captured once at mount, same reasoning as LeaderboardPage: stays
+  // stable across in-page remounts (e.g. season toggling) for this visit.
+  const [updatedMatchId] = useState(() => location.state?.updatedMatchId ?? null)
+
+  // Scrub the transient state from this history entry so revisiting it
+  // later (browser Back/Forward, or navigating back here) doesn't replay
+  // the one-time highlight for a match that was edited long ago.
+  useEffect(() => {
+    if (location.state?.updatedMatchId != null) {
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location, navigate])
+
   const [seasons, setSeasons] = useState([])
   const [selectedSeasonId, setSelectedSeasonId] = useState('')
   const [seasonMatches, setSeasonMatches] = useState(null)
@@ -98,6 +115,7 @@ export default function MatchHistoryPage() {
                 key={match.id}
                 match={match}
                 showActions
+                highlight={match.id === updatedMatchId}
                 isPendingDelete={matchPendingDelete === match.id}
                 onDeleteClick={setMatchPendingDelete}
                 onConfirmDelete={handleConfirmDelete}

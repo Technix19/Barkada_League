@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import Badge from '../atoms/Badge.jsx'
+import TrophyIcon from '../atoms/TrophyIcon.jsx'
 import LeaderboardRow from '../molecules/LeaderboardRow.jsx'
 import { formatPercentage, formatStreak } from '../../utils/formatPercentage.js'
 
-export default function LeaderboardTable({ standings }) {
+export default function LeaderboardTable({ standings, highlightPlayerIds = [] }) {
   return (
     <>
       <div className="leaderboard-table-wrapper">
@@ -21,7 +22,11 @@ export default function LeaderboardTable({ standings }) {
           </thead>
           <tbody>
             {standings.map((entry) => (
-              <LeaderboardRow key={entry.playerId} entry={entry} />
+              <LeaderboardRow
+                key={entry.playerId}
+                entry={entry}
+                highlight={highlightPlayerIds.includes(entry.playerId)}
+              />
             ))}
           </tbody>
         </table>
@@ -31,9 +36,14 @@ export default function LeaderboardTable({ standings }) {
         {standings.map((entry) => {
           const streakVariant =
             entry.currentStreak.type === 'W' ? 'win' : entry.currentStreak.type === 'L' ? 'loss' : 'neutral'
+          const rankClass = entry.rank === 1 ? ' is-rank-1' : ''
+          const highlightClass = highlightPlayerIds.includes(entry.playerId) ? ' updated-row' : ''
           return (
-            <div className="leaderboard-card" key={entry.playerId}>
-              <div className="leaderboard-card-rank">{entry.rank}</div>
+            <div className={`leaderboard-card${rankClass}${highlightClass}`} key={entry.playerId}>
+              <div className="leaderboard-card-rank">
+                {entry.rank === 1 && <TrophyIcon size={16} className="rank-trophy" />}
+                {entry.rank}
+              </div>
               <div className="leaderboard-card-body">
                 <Link to={`/players/${entry.playerId}`} className="leaderboard-card-name">
                   {entry.name}

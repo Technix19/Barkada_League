@@ -21,6 +21,23 @@ body {
   color: var(--color-text);
   background: var(--color-bg);
   -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+/* Extremely faint, slow-breathing atmosphere behind all content. Purely
+   decorative depth -- kept low-opacity so it reads as texture, not motion. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    640px circle at 18% -8%,
+    color-mix(in srgb, var(--color-primary) 12%, transparent),
+    transparent 60%
+  );
+  animation: atmosphere-breathe 10s ease-in-out infinite;
 }
 
 h1,
@@ -50,13 +67,70 @@ img {
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-focus-ring);
+  outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
+}
+
+/* ---------- Motion ----------
+   A small, deliberate motion system. Every animation here reinforces
+   competition, interaction, focus, or feedback -- nothing is decorative
+   for its own sake. See prefers-reduced-motion override at the bottom
+   of this file, which disables all of it. */
+
+@keyframes atmosphere-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Slow "breathing" pulse for the #1 leaderboard position only. */
+@keyframes leader-pulse {
+  0%,
+  100% {
+    border-left-color: var(--color-primary);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 0%, transparent);
+  }
+  50% {
+    border-left-color: var(--color-primary-bright);
+    box-shadow: 0 0 16px 1px color-mix(in srgb, var(--color-primary) 28%, transparent);
+  }
+}
+
+/* One-time flash for a row that just changed, fading back to normal. */
+@keyframes row-highlight {
+  0% {
+    background-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
+    box-shadow: 0 0 16px -2px color-mix(in srgb, var(--color-primary) 35%, transparent);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* Reusable one-time highlight. Apply to a leaderboard row or match card
+   right after it changes (e.g. just after Record/Edit Match navigates
+   back to a list that includes it) to draw the eye to what updated.
+   Currently wired up for: LeaderboardRow/LeaderboardTable (via a
+   `highlight` prop, driven by `location.state.updatedPlayerIds` set by
+   RecordMatchPage) and MatchCard (via a `highlight` prop, driven by
+   `location.state.updatedMatchId` set by EditMatchPage). When the real
+   Express API lands, trigger it the same way: pass along which
+   player/match ids changed in the navigation state after a successful
+   write, and the existing prop plumbing keeps working unmodified. */
+.updated-row {
+  animation: row-highlight 900ms ease-out;
 }
 
 /* ---------- Layout ---------- */
 
 #root {
+  position: relative;
+  z-index: 1;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -81,16 +155,34 @@ img {
 .page-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-4);
   margin-bottom: var(--space-6);
+}
+
+.page-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .page-title {
   font-size: var(--font-size-xl);
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .section {
@@ -121,11 +213,19 @@ img {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   font-size: var(--font-size-lg);
   font-weight: 800;
   letter-spacing: -0.02em;
   text-decoration: none;
   color: var(--color-text);
+}
+
+.brand-icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
 }
 
 .nav-links {
@@ -134,22 +234,45 @@ img {
 }
 
 .nav-link {
+  position: relative;
   display: inline-block;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   text-decoration: none;
   font-weight: 600;
   color: var(--color-muted);
+  border: 1px solid transparent;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .nav-link:hover {
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--color-surface-hover);
 }
 
 .nav-link.active {
-  color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary-bright);
+  background: var(--color-primary-soft);
+  border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+/* Small underline that animates into place on the active nav item. */
+.nav-link::after {
+  content: '';
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: 3px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-primary-bright);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.22s ease;
+}
+
+.nav-link.active::after {
+  transform: scaleX(1);
 }
 
 .nav-toggle {
@@ -206,6 +329,8 @@ img {
   cursor: pointer;
   text-decoration: none;
   min-height: 44px;
+  transition: background-color 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease,
+    transform 0.18s ease;
 }
 
 .btn:disabled {
@@ -215,11 +340,18 @@ img {
 
 .btn-primary {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-accent);
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+.btn-primary:hover:not(:disabled),
+.btn-primary:focus-visible:not(:disabled) {
+  background: var(--color-primary-bright);
+  box-shadow: var(--shadow-glow-primary-hover);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .btn-secondary {
@@ -229,16 +361,16 @@ img {
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--color-bg);
+  background: var(--color-surface-hover);
 }
 
 .btn-danger {
-  background: var(--color-danger);
+  background: var(--color-danger-strong);
   color: #fff;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: var(--color-danger-hover);
+  background: var(--color-danger);
 }
 
 .btn-sm {
@@ -283,10 +415,13 @@ img {
   color: var(--color-text);
   font-size: var(--font-size-base);
   min-height: 44px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .form-control:focus-visible {
+  outline: none;
   border-color: var(--color-primary);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .form-control[aria-invalid='true'] {
@@ -305,12 +440,78 @@ img {
 }
 
 .form-banner-error {
-  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
   border: 1px solid var(--color-danger);
   color: var(--color-danger);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-4);
+}
+
+/* ---------- Matchup (Record / Edit Match) ---------- */
+
+.matchup-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+@media (min-width: 641px) {
+  .matchup-grid .form-field {
+    align-items: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .matchup-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vs-label {
+  align-self: center;
+  margin-top: var(--space-6);
+  font-size: var(--font-size-base);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--color-text);
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+@media (max-width: 640px) {
+  .vs-label {
+    margin-top: 0;
+    text-align: center;
+  }
+}
+
+/* When either score field has focus, brighten the VS indicator between them. */
+.matchup-grid:focus-within .vs-label {
+  color: var(--color-primary-bright);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
+.score-input {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  text-align: center;
+  color: var(--color-primary-bright);
+}
+
+/* A slightly stronger focus treatment than the base form control, since
+   the score is the most competitive piece of data on this form. */
+.score-input:focus-visible {
+  border-color: var(--color-primary-bright);
+  box-shadow: var(--shadow-glow-primary), 0 0 20px -4px var(--color-primary);
+}
+
+@media (min-width: 641px) {
+  .score-input {
+    max-width: 110px;
+    margin: 0 auto;
+    font-size: 2rem;
+  }
 }
 
 /* ---------- Cards / surfaces ---------- */
@@ -336,17 +537,22 @@ img {
 }
 
 .badge-win {
-  background: color-mix(in srgb, var(--color-win) 15%, transparent);
-  color: var(--color-win);
+  background: color-mix(in srgb, var(--color-success) 15%, transparent);
+  color: var(--color-success);
 }
 
 .badge-loss {
-  background: color-mix(in srgb, var(--color-loss) 15%, transparent);
-  color: var(--color-loss);
+  background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+  color: var(--color-danger);
+}
+
+.badge-primary {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-bright);
 }
 
 .badge-neutral {
-  background: var(--color-bg);
+  background: var(--color-surface-hover);
   color: var(--color-muted);
 }
 
@@ -383,17 +589,42 @@ img {
   border-bottom: none;
 }
 
+.leaderboard-table tr.is-rank-1 {
+  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+}
+
+.leaderboard-table tr.is-rank-1 td:first-child {
+  border-left: 3px solid var(--color-primary);
+  animation: leader-pulse 3.6s ease-in-out infinite;
+}
+
 .leaderboard-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   font-weight: 700;
   color: var(--color-muted);
+}
+
+.is-rank-1 .leaderboard-rank {
+  color: var(--color-primary-bright);
+}
+
+.rank-trophy {
+  color: var(--color-primary-bright);
+  flex-shrink: 0;
 }
 
 .leaderboard-player-link {
   font-weight: 700;
   text-decoration: none;
+  /* No explicit color: inherits from the reset's `a { color: inherit }`
+     so a winning player's name (see .match-card-player.winner) still
+     shows in the success color instead of being overridden here. */
 }
 
 .leaderboard-player-link:hover {
+  color: var(--color-primary-bright);
   text-decoration: underline;
 }
 
@@ -430,12 +661,24 @@ img {
   gap: var(--space-3);
 }
 
+.leaderboard-card.is-rank-1 {
+  background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
+  border-left: 3px solid var(--color-primary);
+  animation: leader-pulse 3.6s ease-in-out infinite;
+}
+
 .leaderboard-card-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   font-weight: 800;
   font-size: var(--font-size-lg);
   color: var(--color-muted);
-  width: 2ch;
   flex-shrink: 0;
+}
+
+.is-rank-1 .leaderboard-card-rank {
+  color: var(--color-primary-bright);
 }
 
 .leaderboard-card-body {
@@ -446,6 +689,7 @@ img {
 .leaderboard-card-name {
   font-weight: 700;
   text-decoration: none;
+  color: var(--color-text);
   display: block;
 }
 
@@ -467,30 +711,55 @@ img {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.match-card-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+@media (min-width: 641px) {
+  .match-card-row {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-4);
+  }
 }
 
 .match-card-date {
   font-size: var(--font-size-sm);
   color: var(--color-muted);
-  margin-bottom: var(--space-2);
+  white-space: nowrap;
 }
 
-.match-card-score-row {
+@media (min-width: 641px) {
+  .match-card-date {
+    flex: 0 0 130px;
+  }
+}
+
+.match-card-matchup {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   font-weight: 600;
+  flex: 1;
+  min-width: 0;
 }
 
 .match-card-player {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .match-card-player.winner {
-  color: var(--color-win);
+  color: var(--color-primary-bright);
   font-weight: 800;
 }
 
@@ -503,25 +772,19 @@ img {
   font-weight: 800;
   white-space: nowrap;
   padding-inline: var(--space-3);
-}
-
-.match-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.match-card-winner {
-  color: var(--color-muted);
-  font-size: var(--font-size-sm);
+  flex-shrink: 0;
 }
 
 .match-card-actions {
   display: flex;
   gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+@media (min-width: 641px) {
+  .match-card-actions {
+    flex: 0 0 auto;
+  }
 }
 
 .match-card-confirm {
@@ -530,7 +793,7 @@ img {
   justify-content: space-between;
   gap: var(--space-3);
   flex-wrap: wrap;
-  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
   border: 1px solid var(--color-danger);
   border-radius: var(--radius-sm);
   padding: var(--space-3);
@@ -571,7 +834,7 @@ img {
 .stat-card-value {
   font-size: var(--font-size-2xl);
   font-weight: 800;
-  color: var(--color-primary);
+  color: var(--color-primary-bright);
 }
 
 .stat-card-label {
@@ -610,9 +873,9 @@ img {
 }
 
 .success-banner {
-  background: color-mix(in srgb, var(--color-win) 12%, transparent);
-  border: 1px solid var(--color-win);
-  color: var(--color-win);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  border: 1px solid var(--color-success);
+  color: var(--color-success);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-4);
@@ -638,6 +901,13 @@ img {
   margin-bottom: var(--space-6);
 }
 
+.player-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
 .player-name {
   font-size: var(--font-size-2xl);
   font-weight: 800;
@@ -652,4 +922,24 @@ img {
   color: var(--color-muted);
   font-size: var(--font-size-sm);
   margin-top: var(--space-1);
+}
+
+/* ---------- Reduced motion ----------
+   Collapses every animation/transition to effectively instant and drops
+   the decorative background atmosphere entirely. Focus visibility (the
+   :focus-visible outline above) is a static outline, not an animation,
+   so it is completely unaffected and stays strong. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  body::before {
+    display: none;
+  }
 }

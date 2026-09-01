@@ -1,6 +1,7 @@
 const VARIANT_CLASS = {
   win: 'badge-win',
   loss: 'badge-loss',
+  primary: 'badge-primary',
   neutral: 'badge-neutral',
 }
 

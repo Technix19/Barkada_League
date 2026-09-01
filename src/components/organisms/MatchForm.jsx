@@ -89,10 +89,11 @@ export default function MatchForm({
         </FormField>
       </div>
 
-      <div className="form-grid">
+      <div className="matchup-grid">
         <FormField label="Player 1 Score" htmlFor="player1Score" error={errors.player1Score}>
           <Input
             id="player1Score"
+            className="score-input"
             type="number"
             min="0"
             step="1"
@@ -103,9 +104,14 @@ export default function MatchForm({
           />
         </FormField>
 
+        <span className="vs-label" aria-hidden="true">
+          VS
+        </span>
+
         <FormField label="Player 2 Score" htmlFor="player2Score" error={errors.player2Score}>
           <Input
             id="player2Score"
+            className="score-input"
             type="number"
             min="0"
             step="1"

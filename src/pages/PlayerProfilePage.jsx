@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Select from '../components/atoms/Select.jsx'
+import Badge from '../components/atoms/Badge.jsx'
 import StatCard from '../components/molecules/StatCard.jsx'
 import MatchCard from '../components/molecules/MatchCard.jsx'
 import * as api from '../services/mockApi.js'
@@ -46,13 +47,16 @@ export default function PlayerProfilePage() {
     Promise.all([
       api.getPlayerStats(id, selectedSeasonId),
       api.getMatches(selectedSeasonId),
+      api.getLeaderboard(selectedSeasonId),
     ])
-      .then(([statsData, matchesData]) => {
+      .then(([statsData, matchesData, standings]) => {
         if (cancelled) return
         setError(null)
+        const rankEntry = standings.find((entry) => String(entry.playerId) === String(id))
         setProfileData({
           seasonId: selectedSeasonId,
           stats: statsData,
+          rank: rankEntry?.rank ?? null,
           recentMatches: matchesData.filter(
             (m) => String(m.player1Id) === String(id) || String(m.player2Id) === String(id),
           ),
@@ -70,6 +74,7 @@ export default function PlayerProfilePage() {
   const loading =
     !error && (!profileData || profileData.seasonId !== selectedSeasonId)
   const stats = profileData?.stats ?? null
+  const rank = profileData?.rank ?? null
   const recentMatches = profileData?.recentMatches ?? []
 
   if (notFound) {
@@ -96,7 +101,12 @@ export default function PlayerProfilePage() {
         <>
           <div className="page-header player-heading">
             <div>
-              <div className="player-name">{player.name}</div>
+              <div className="player-identity">
+                <div className="player-name">{player.name}</div>
+                {rank != null && (
+                  <Badge variant={rank === 1 ? 'primary' : 'neutral'}>#{rank} this season</Badge>
+                )}
+              </div>
               {player.nickname && <div className="player-nickname">"{player.nickname}"</div>}
               <div className="player-joined">Joined {formatJoinMonth(player.joinDate)}</div>
             </div>

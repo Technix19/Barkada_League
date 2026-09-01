@@ -44,7 +44,7 @@ export default function EditMatchPage() {
     setSubmitError(null)
     try {
       await api.updateMatch(id, formData)
-      navigate('/matches')
+      navigate('/matches', { state: { updatedMatchId: Number(id) } })
     } catch {
       setSubmitError('Could not save changes. Please check the form and try again.')
     } finally {

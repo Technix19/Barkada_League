@@ -37,7 +37,12 @@ export default function RecordMatchPage() {
     setSubmitError(null)
     try {
       await api.createMatch(formData)
-      navigate('/', { state: { successMessage: 'Match recorded.' } })
+      navigate('/', {
+        state: {
+          successMessage: 'Match recorded.',
+          updatedPlayerIds: [Number(formData.player1Id), Number(formData.player2Id)],
+        },
+      })
     } catch {
       setSubmitError('Could not save this match. Please check the form and try again.')
     } finally {

@@ -1,19 +1,32 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  --color-primary: #1d6f52;
-  --color-primary-hover: #175a42;
-  --color-accent: #e0a51c;
-  --color-bg: #f7f7f5;
-  --color-surface: #ffffff;
-  --color-text: #1c1e1c;
-  --color-muted: #63685f;
-  --color-border: #e1e2dd;
-  --color-danger: #b3311f;
-  --color-danger-hover: #8f2718;
-  --color-win: #1d6f52;
-  --color-loss: #b3311f;
-  --color-focus-ring: #1d6f52;
+  --color-bg: #080b10;
+  --color-surface: #10151d;
+  --color-surface-hover: #151c26;
+  --color-surface-raised: #171e28;
+
+  --color-primary: #00bfff;
+  --color-primary-bright: #20d4ff;
+  --color-primary-soft: #0b2633;
+
+  --color-text: #f4f7fa;
+  --color-muted: #8d99a8;
+  --color-border: #26303c;
+
+  --color-success: #31e6a1;
+  --color-danger: #ff5a67;
+  --color-danger-strong: color-mix(in srgb, var(--color-danger) 80%, black);
+
+  /* Text/icon color for use on top of solid accent-colored surfaces
+     (primary/danger buttons) -- the accent colors are bright enough that
+     dark text reads far better there than light text. */
+  --color-on-accent: #04141b;
+
+  --color-focus-ring: var(--color-primary-bright);
+
+  --shadow-glow-primary: 0 0 0 3px var(--color-primary-soft);
+  --shadow-glow-primary-hover: 0 0 18px -4px var(--color-primary);
 
   --font-sans: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
 
@@ -34,26 +47,8 @@
   --radius-md: 10px;
   --radius-lg: 16px;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
 
   --max-width: 1080px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-primary: #3fae86;
-    --color-primary-hover: #59c69c;
-    --color-accent: #f0bb47;
-    --color-bg: #14161a;
-    --color-surface: #1c1f24;
-    --color-text: #eef0ec;
-    --color-muted: #9aa09a;
-    --color-border: #2c2f34;
-    --color-danger: #e2564a;
-    --color-danger-hover: #ef7267;
-    --color-win: #3fae86;
-    --color-loss: #e2564a;
-    --color-focus-ring: #59c69c;
-  }
 }

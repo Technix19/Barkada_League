@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Select from '../components/atoms/Select.jsx'
 import LeaderboardTable from '../components/organisms/LeaderboardTable.jsx'
 import RecentMatches from '../components/organisms/RecentMatches.jsx'
@@ -7,7 +7,22 @@ import * as api from '../services/mockApi.js'
 
 export default function LeaderboardPage() {
   const location = useLocation()
-  const successMessage = location.state?.successMessage
+  const navigate = useNavigate()
+
+  // Captured once at mount so this visit's banner/highlight stay stable
+  // even as child components remount (e.g. toggling the season selector).
+  const [successMessage] = useState(() => location.state?.successMessage ?? null)
+  const [updatedPlayerIds] = useState(() => location.state?.updatedPlayerIds ?? [])
+
+  // Scrub the transient state from this history entry so it doesn't
+  // replay the banner/highlight if the user leaves and comes back via
+  // browser Back/Forward, or revisits "/" through this same entry later.
+  useEffect(() => {
+    if (location.state?.successMessage || location.state?.updatedPlayerIds) {
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location, navigate])
+
   const [seasons, setSeasons] = useState([])
   const [selectedSeasonId, setSelectedSeasonId] = useState('')
   const [leaderboardData, setLeaderboardData] = useState(null)
@@ -66,21 +81,29 @@ export default function LeaderboardPage() {
   return (
     <div className="container page">
       <div className="page-header">
-        <h1 className="page-title">Leaderboard</h1>
-        {seasons.length > 0 && (
-          <Select
-            className="season-select"
-            aria-label="Select season"
-            value={selectedSeasonId}
-            onChange={(e) => setSelectedSeasonId(e.target.value)}
-          >
-            {seasons.map((season) => (
-              <option key={season.id} value={season.id}>
-                {season.name}
-              </option>
-            ))}
-          </Select>
-        )}
+        <div className="page-header-text">
+          <h1 className="page-title">Leaderboard</h1>
+          <p className="page-subtitle">Current standings</p>
+        </div>
+        <div className="page-header-actions">
+          {seasons.length > 0 && (
+            <Select
+              className="season-select"
+              aria-label="Select season"
+              value={selectedSeasonId}
+              onChange={(e) => setSelectedSeasonId(e.target.value)}
+            >
+              {seasons.map((season) => (
+                <option key={season.id} value={season.id}>
+                  {season.name}
+                </option>
+              ))}
+            </Select>
+          )}
+          <Link to="/matches/new" className="btn btn-primary">
+            Record Match
+          </Link>
+        </div>
       </div>
 
       {successMessage && <p className="success-banner">{successMessage}</p>}
@@ -92,7 +115,7 @@ export default function LeaderboardPage() {
       {!loading && !error && (
         <>
           {hasAnyMatches ? (
-            <LeaderboardTable standings={standings} />
+            <LeaderboardTable standings={standings} highlightPlayerIds={updatedPlayerIds} />
           ) : (
             <p className="state-message">
               No matches have been recorded for this season yet. Record the first match to start
@@ -103,12 +126,6 @@ export default function LeaderboardPage() {
           <div className="section">
             <h2 className="section-title">Recent Matches</h2>
             <RecentMatches matches={recentMatches} />
-          </div>
-
-          <div className="section form-actions">
-            <Link to="/matches/new" className="btn btn-primary">
-              Record Match
-            </Link>
           </div>
         </>
       )}
