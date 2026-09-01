@@ -4,6 +4,7 @@ import pool from './db.js'
 import playersRouter from './routes/players.js'
 import seasonsRouter from './routes/seasons.js'
 import matchesRouter from './routes/matches.js'
+import leaderboardRouter from './routes/leaderboard.js'
 
 const app = express()
 
@@ -23,6 +24,7 @@ app.get('/api/health', async (req, res) => {
 app.use('/api/players', playersRouter)
 app.use('/api/seasons', seasonsRouter)
 app.use('/api/matches', matchesRouter)
+app.use('/api/leaderboard', leaderboardRouter)
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' })
