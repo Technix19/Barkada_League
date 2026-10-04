@@ -410,28 +410,35 @@ if I'd only checked that the page loaded.
 
 ## 3. Who wrote what
 
-> **⚠️ THIS SECTION IS NOT FINISHED — DO NOT SUBMIT AS-IS.**
->
-> This section is worth 30 of the 100 points and it has to be written by me,
-> about code I actually wrote myself, naming the file and the commit and
-> explaining it in my own words. Sections 1, 2 and the README credit together
-> only reach 70 points, and the badge needs 75 — so this section is the
-> difference between earning the badge and not.
->
-> As the repository stands right now, I cannot honestly point at a meaningful
-> piece of application code as my own. What I actually contributed was the spec
-> in `BARKADA_LEAGUE_PROJECT_SPEC.md`, the architecture constraints (server
-> derives the winner; no stored statistics; no Supabase SDK on the frontend),
-> the phase-by-phase review that caught several bugs, the Supabase setup, and
-> the commits — all real, but none of it is "code I wrote myself."
->
-> **To finish this honestly I need to write a real piece of this project myself,
-> commit it, and then explain it here.** Something route-sized or query-sized, as
-> the rubric suggests. Then replace this block with:
->
-> - **What I wrote:** the file, the commit link, and what it does
-> - **Why it's built that way:** in my own words — the reasoning, not a
->   description of the syntax
-> - **The one AI-written piece I understand best:** file, commit, and the same
->   depth of explanation (the rubric gives full marks for explaining AI-written
->   code well, as long as I'm clear that's what it is)
+Code I wrote myself, reviewed with AI but not written by it:
+
+### Self-written 1 — Rate limiter middleware
+
+- **What I wrote:** `server/src/utils/rateLimit.js`, wired into `server/src/app.js`
+  on `/api`. Commit: https://github.com/Technix19/Barkada_League/commit/98235e35cc09bc6553b1dc04c6bcf94eb6eceb79
+- **Why it's built that way:** I made it a function that takes the time window and request limit as values so I can easily change them in app.js without editing the actual limiter logic. I used a Map to keep track of each IP address and how many requests it has made. Since this is only a small project running on one server, I thought using memory was enough and using a database just for the rate limiter would be unnecessary.
+
+### Self-written 2 — Active season route
+
+- **What I wrote:** `server/src/routes/seasons.js`, the `GET /active` handler.
+  Commit: https://github.com/Technix19/Barkada_League/commit/bd74f7c22d5869e090da755cbbdb37cefbb85a76
+- **Why it's built that way:** I made /active a separate route because it has a different purpose from the route that returns all seasons. If there is no active season, I return a 404 because the specific thing being requested does not exist. My first version used /, which would have conflicted with the existing route, so I changed it to /active.
+
+### Self-written 3 — Unit tests for the stats and validation logic
+
+- **What I wrote:** `server/tests/leagueStats.test.js` and
+  `server/tests/validateMatch.test.js`, using Node's built-in `node:test` runner
+  so no new dependency was needed. I added the `test` script to
+  `server/package.json`.
+  Commits: https://github.com/Technix19/Barkada_League/commit/b4fa954b032b83d48396dcdf865cdf1f0b3509b1 (tests) and https://github.com/Technix19/Barkada_League/commit/c3116965dfe87f55d7ea6aa769df73d35dd4b89e (script)
+- **Why it's built that way:** I focused the tests on functions that can run by themselves without needing the database. This made the tests simpler and safer because they only check the logic and do not change any real data. I also used Node's built-in test tools so I did not have to install another testing library. After the tests were reviewed, I also improved some of the assertions so they checked the exact result more clearly.
+
+### AI-written piece I understand best
+
+- File: src/styles/variables.css
+- Commit: b4041ec6dd87c348cca9957121a1be708eafdf39
+
+The AI-written piece I understand best is src/styles/variables.css. This file contains the main design values used throughout the website, such as the colors, font sizes, spacing, border radius, shadows, and maximum page width. Instead of writing the same color or spacing value repeatedly in different CSS rules, they are stored as CSS variables inside :root.
+For example, --color-primary contains the main blue color of the website, while --color-bg and --color-surface control the darker background colors. Other CSS files can then use something like var(--color-primary) instead of writing the hex color again. This makes the design more consistent because changing one variable can update that value everywhere it is being used.
+The same idea is used for spacing and font sizes. Variables such as --space-2, --space-4, and --space-8 give the interface a consistent spacing system instead of using random values for every component. The radius and shadow variables work in a similar way for cards, buttons, and other elements.
+One thing I would change is some of the naming. There are several variables for similar colors, such as --color-primary, --color-primary-bright, and --color-primary-soft. They make sense after reading the file, but I would probably add short comments explaining where each variation should normally be used. This would make it easier for me to choose the correct variable when adding a new component later.
