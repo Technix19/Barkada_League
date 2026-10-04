@@ -473,6 +473,21 @@ Code I wrote myself, reviewed with AI but not written by it:
   the rule list before I committed it. The original AI-written version is still described in
   Section 1 and Section 2.
 
+### Self-written 7 — Leaderboard and streak logic rewrite
+
+- **What I wrote:** I rewrote `server/src/utils/leagueStats.js` from the ranking and
+  streak rules, not by copying the original. It holds `getSeasonStandings`,
+  `calculateStreak`, `calculateWinPercentage`, and `seasonExists`, which the leaderboard
+  and player stats routes both use.
+  Commit: https://github.com/Technix19/Barkada_League/commit/3f51264975005d89dd5271d54c6cdcae4678e00c
+- **Why it's built that way:** The ranking is based on wins first, followed by win percentage, then the number of matches played, and finally the player's name if there is still a tie. The streak is based on the player's latest results and counts how many wins or losses in a row they currently have. I used a `LEFT JOIN` so players are still included in the standings even if they have not played any matches yet.
+- **What I tested:** `npm test` passes all 16 tests. I also compared the old and new
+  `getSeasonStandings` output for season 1, and they matched for all 6 players, including
+  ranks and streaks. I checked this with a temporary copy of the old file, which I then
+  deleted.
+- **A note on the commit message:** It says "not AI". That's not accurate. The AI gave
+  me the rules and reviewed the rewrite, the same as with `validateMatch.js`.
+
 ### AI-written piece I understand best
 
 - File: src/styles/variables.css
