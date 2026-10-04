@@ -207,4 +207,166 @@ router.get("/:id/matches", async (req, res) => {
   }
 });
 
+router.get("/:id/vs/:opponentId", async (req, res) => {
+  const id = parsePositiveInt(req.params.id);
+  const opponentId = parsePositiveInt(req.params.opponentId);
+
+  if (id === null || opponentId === null) {
+    return res.status(400).json({ error: "Invalid player id" });
+  }
+
+  if (id === opponentId) {
+    return res.status(400).json({ error: "Players must be different" });
+  }
+
+  const { seasonId } = req.query;
+  let parsedSeasonId = null;
+
+  if (seasonId !== undefined) {
+    parsedSeasonId = parsePositiveInt(seasonId);
+
+    if (parsedSeasonId === null) {
+      return res.status(400).json({ error: "Invalid seasonId" });
+    }
+  }
+
+  try {
+    // Check if both players exist
+    const playersResult = await pool.query(
+      `SELECT id, name, nickname
+       FROM players
+       WHERE id = $1 OR id = $2`,
+      [id, opponentId],
+    );
+
+    if (playersResult.rows.length !== 2) {
+      return res.status(404).json({ error: "Player not found" });
+    }
+
+    // Check if the season exists if one was provided
+    if (parsedSeasonId !== null) {
+      const exists = await seasonExists(parsedSeasonId);
+
+      if (!exists) {
+        return res.status(404).json({ error: "Season not found" });
+      }
+    }
+
+    let query = `
+      SELECT
+        m.id,
+        m.season_id AS "seasonId",
+        m.player1_score AS "player1Score",
+        m.player2_score AS "player2Score",
+        m.played_at::text AS "playedAt",
+        m.created_at AS "createdAt",
+
+        p1.id AS "player1Id",
+        p1.name AS "player1Name",
+        p1.nickname AS "player1Nickname",
+
+        p2.id AS "player2Id",
+        p2.name AS "player2Name",
+        p2.nickname AS "player2Nickname",
+
+        w.id AS "winnerId",
+        w.name AS "winnerName",
+        w.nickname AS "winnerNickname"
+
+      FROM matches m
+      JOIN players p1 ON p1.id = m.player1_id
+      JOIN players p2 ON p2.id = m.player2_id
+      JOIN players w ON w.id = m.winner_id
+
+      WHERE (
+        (m.player1_id = $1 AND m.player2_id = $2)
+        OR
+        (m.player1_id = $2 AND m.player2_id = $1)
+      )
+    `;
+
+    const params = [id, opponentId];
+
+    if (parsedSeasonId !== null) {
+      query += " AND m.season_id = $3";
+      params.push(parsedSeasonId);
+    }
+
+    query += " ORDER BY m.played_at DESC, m.id DESC";
+
+    const result = await pool.query(query, params);
+
+    let playerWins = 0;
+    let opponentWins = 0;
+
+    const matches = result.rows.map((row) => {
+      if (row.winnerId === id) {
+        playerWins++;
+      }
+
+      if (row.winnerId === opponentId) {
+        opponentWins++;
+      }
+
+      return {
+        id: row.id,
+        seasonId: row.seasonId,
+
+        player1: {
+          id: row.player1Id,
+          name: row.player1Name,
+          nickname: row.player1Nickname,
+        },
+
+        player2: {
+          id: row.player2Id,
+          name: row.player2Name,
+          nickname: row.player2Nickname,
+        },
+
+        player1Score: row.player1Score,
+        player2Score: row.player2Score,
+
+        winner: {
+          id: row.winnerId,
+          name: row.winnerName,
+          nickname: row.winnerNickname,
+        },
+
+        playedAt: row.playedAt,
+        createdAt: row.createdAt,
+      };
+    });
+
+    const player = playersResult.rows.find((row) => row.id === id);
+    const opponent = playersResult.rows.find((row) => row.id === opponentId);
+
+    res.json({
+      summary: {
+        totalMatches: matches.length,
+
+        player: {
+          id: player.id,
+          name: player.name,
+          nickname: player.nickname,
+          wins: playerWins,
+        },
+
+        opponent: {
+          id: opponent.id,
+          name: opponent.name,
+          nickname: opponent.nickname,
+          wins: opponentWins,
+        },
+      },
+
+      matches,
+    });
+  } catch (err) {
+    console.error("GET /api/players/:id/vs/:opponentId failed:", err.message);
+
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default router;
