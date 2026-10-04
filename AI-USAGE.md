@@ -496,9 +496,10 @@ Code I wrote myself, reviewed with AI but not written by it:
   Commits: https://github.com/Technix19/Barkada_League/commit/03dd00d (POST) and https://github.com/Technix19/Barkada_League/commit/120a0c67b104a51bb2f0c5ca266123a245156c02 (PATCH and DELETE)
 - **Why it's built that way:** The server always calculates the winner itself whenever a match is created or updated, so the user cannot manually set the winner in the request. For `PATCH`, it only changes the fields that were actually sent and keeps the rest of the existing match data. After that, it validates the full updated match before saving it, so sending something like `null` will cause a validation error instead of removing the value. Before saving any changes, it also checks that the season and both players really exist.
 - **What I tested:** Against the running server, I sent invalid requests to all three
-  handlers and got the expected 400 and 404 responses, and the match count stayed at 15.
-  The success paths (create, edit, delete) are not tested yet, because they change the
-  database.
+  handlers and got the expected 400 and 404 responses. I then ran one create, edit, and
+  delete cycle: a 3-1 match was created with player 1 as winner, changing the score to 0-4
+  made player 2 the winner under the same id, and the delete returned 204. The match count
+  went back to 15.
 
 ### AI-written piece I understand best
 
