@@ -410,7 +410,9 @@ if I'd only checked that the page loaded.
 
 ## 3. Who wrote what
 
-Code I wrote myself, reviewed with AI but not written by it:
+### Code I wrote myself, reviewed with AI but not written by it.
+
+The pieces below are the part of the Node/Express/Postgres application that I wrote myself. They include complete routes, validation and statistics utilities, middleware, and backend tests rather than only small edits or formatting changes. I listed the exact files and commits for each one so the work can be checked against the repository history.
 
 ### Self-written 1 — Rate limiter middleware
 
@@ -493,7 +495,8 @@ Code I wrote myself, reviewed with AI but not written by it:
 - **What I wrote:** I rewrote the `POST /`, `PATCH /:id`, and `DELETE /:id` handlers in
   `server/src/routes/matches.js`, working from the match rules in my spec and the
   step-by-step guidance the AI gave me. The AI reviewed the rewrite.
-  Commits: https://github.com/Technix19/Barkada_League/commit/03dd00d (POST) and https://github.com/Technix19/Barkada_League/commit/120a0c67b104a51bb2f0c5ca266123a245156c02 (PATCH and DELETE)
+  Commits: https://github.com/Technix19/Barkada_League/commit/03dd00de51928c5ae3e16265fe23ff9783fe5faa
+  (POST) and https://github.com/Technix19/Barkada_League/commit/120a0c67b104a51bb2f0c5ca266123a245156c02 (PATCH and DELETE)
 - **Why it's built that way:** The server always calculates the winner itself whenever a match is created or updated, so the user cannot manually set the winner in the request. For `PATCH`, it only changes the fields that were actually sent and keeps the rest of the existing match data. After that, it validates the full updated match before saving it, so sending something like `null` will cause a validation error instead of removing the value. Before saving any changes, it also checks that the season and both players really exist.
 - **What I tested:** Against the running server, I sent invalid requests to all three
   handlers and got the expected 400 and 404 responses. I then ran one create, edit, and
@@ -522,7 +525,7 @@ Code I wrote myself, reviewed with AI but not written by it:
   use in `getSeasonStandings`, the `longestWinStreak` field in `GET /api/players/:id/stats`
   in `server/src/routes/players.js`, and the unit tests in `server/tests/leagueStats.test.js`.
   Commit: https://github.com/Technix19/Barkada_League/commit/95e82db6c779865e651b5ab4f98767ffa82092c4
-- **Why it's built that way:** Why it’s built that way: I made longestWinStreak a separate function because it measures something different from the current streak. The current streak only checks what is happening right now, while the longest win streak looks through all of the player’s results and finds the highest number of wins in a row. I return null when a player has no matches, but 0 when they have played and never won, because those are two different cases. I also kept it out of the leaderboard sorting so the existing ranking rules would not change.
+- **Why it's built that way:** I made longestWinStreak a separate function because it measures something different from the current streak. The current streak only checks what is happening right now, while the longest win streak looks through all of the player’s results and finds the highest number of wins in a row. I return null when a player has no matches, but 0 when they have played and never won, because those are two different cases. I also kept it out of the leaderboard sorting so the existing ranking rules would not change.
 - **What I tested:** `npm test` passes all 21 tests, including a case where the longer
   streak comes second. The live leaderboard and `/stats` return the field, and the player
   count stayed at 6.
@@ -530,7 +533,7 @@ Code I wrote myself, reviewed with AI but not written by it:
 ### AI-written piece I understand best
 
 - File: src/styles/variables.css
-- Commit: b4041ec6dd87c348cca9957121a1be708eafdf39
+- Commit: https://github.com/Technix19/Barkada_League/commit/b4041ec6dd87c348cca9957121a1be708eafdf39
 
 The AI-written piece I understand best is src/styles/variables.css. This file contains the main design values used throughout the website, such as the colors, font sizes, spacing, border radius, shadows, and maximum page width. Instead of writing the same color or spacing value repeatedly in different CSS rules, they are stored as CSS variables inside :root.
 For example, --color-primary contains the main blue color of the website, while --color-bg and --color-surface control the darker background colors. Other CSS files can then use something like var(--color-primary) instead of writing the hex color again. This makes the design more consistent because changing one variable can update that value everywhere it is being used.

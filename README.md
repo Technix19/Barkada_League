@@ -169,20 +169,20 @@ is reachable.
 
 All routes are prefixed with `/api`.
 
-| Method | Route | What it does |
-|---|---|---|
-| GET | `/api/health` | Checks the server + database connection |
-| GET | `/api/players` | List all players |
-| GET | `/api/players/:id` | One player |
-| GET | `/api/players/:id/stats?seasonId=` | One player's derived stats (wins, losses, win %, streak, rank) for a season |
-| GET | `/api/seasons` | List all seasons |
-| GET | `/api/seasons/active` | The active season (404 if none) |
-| GET | `/api/matches?seasonId=` | List matches for a season, newest first |
-| GET | `/api/matches/:id` | One match |
-| POST | `/api/matches` | Create a match (server derives the winner from scores) |
-| PATCH | `/api/matches/:id` | Update a match (winner is recalculated) |
-| DELETE | `/api/matches/:id` | Delete a match |
-| GET | `/api/leaderboard?seasonId=` | Full season standings, ranked, with streaks |
+| Method | Route                              | What it does                                                                |
+| ------ | ---------------------------------- | --------------------------------------------------------------------------- |
+| GET    | `/api/health`                      | Checks the server + database connection                                     |
+| GET    | `/api/players`                     | List all players                                                            |
+| GET    | `/api/players/:id`                 | One player                                                                  |
+| GET    | `/api/players/:id/stats?seasonId=` | One player's derived stats (wins, losses, win %, streak, rank) for a season |
+| GET    | `/api/seasons`                     | List all seasons                                                            |
+| GET    | `/api/seasons/active`              | The active season (404 if none)                                             |
+| GET    | `/api/matches?seasonId=`           | List matches for a season, newest first                                     |
+| GET    | `/api/matches/:id`                 | One match                                                                   |
+| POST   | `/api/matches`                     | Create a match (server derives the winner from scores)                      |
+| PATCH  | `/api/matches/:id`                 | Update a match (winner is recalculated)                                     |
+| DELETE | `/api/matches/:id`                 | Delete a match                                                              |
+| GET    | `/api/leaderboard?seasonId=`       | Full season standings, ranked, with streaks                                 |
 
 A few validation rules worth knowing: scores can't be negative, can't be
 equal, both players have to exist and be different from each other, and
@@ -216,9 +216,6 @@ confirmation, error state, etc.) are in `docs/screenshots/`.
 
 ## Known issues and next steps
 
-- No automated test suite — everything so far has been tested manually
-  (and, during development, with scripted browser checks) against the
-  real Supabase database.
 - CORS on the Express server is wide open (`cors()` with no config).
   Fine for a local/course project, not something you'd want as-is in
   production.
@@ -229,9 +226,6 @@ confirmation, error state, etc.) are in `docs/screenshots/`.
   (see `BARKADA_LEAGUE_PROJECT_SPEC.md`), not an oversight.
 - No screen to add/remove/edit players or seasons through the UI — right
   now that only happens through `seed.sql` or directly in the database.
-- Possible future additions (not built): longest win streak, head-to-head
-  stats between two specific players, career stats across multiple
-  seasons.
 
 See `project/REPORT.md` and `project/SECURITY-CHECKLIST.md` for more
 detail on what's been built and verified.
