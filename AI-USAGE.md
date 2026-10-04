@@ -448,6 +448,17 @@ Code I wrote myself, reviewed with AI but not written by it:
   I found a bug in my first version of that check: it ran even without a `seasonId`,
   so every request returned 404. I caught it when I retested and fixed it.
 
+### Self-written 5 — Head-to-head route
+
+- **What I wrote:** the `GET /:id/vs/:opponentId` handler in `server/src/routes/players.js`.
+  It returns the matches between two players, newest first, with an optional `seasonId`
+  filter and a summary of each player's wins.
+  Commit: https://github.com/Technix19/Barkada_League/commit/1edc29282ec8c214827ae3b43fb1b43085d86471
+- **Why it's built that way:** The route checks both player IDs first before doing anything with the database. If both IDs are the same, it returns a 400 right away because a player should not be compared against themselves. It also checks that both players actually exist. The match query works even if either player appears as player 1 or player 2, and the win totals are based on `winner_id` so they match the actual recorded winner of each game.
+- **What I tested:** Against the running server. `/1/vs/2` and `/2/vs/1` return the same
+  two matches, the two win counts add up to the total, and the same-player, unknown
+  player, and unknown season cases return the expected 400 and 404.
+
 ### AI-written piece I understand best
 
 - File: src/styles/variables.css
