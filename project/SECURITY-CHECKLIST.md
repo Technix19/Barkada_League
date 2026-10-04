@@ -132,9 +132,14 @@ tree — that's a real gap, not something I'm claiming is clean.
 ## Rate limiting / abuse protection
 
 **Is there any rate limiting or request throttling on the API?**
-No. There's no rate-limiting middleware installed (confirmed by checking
-`server/package.json` — no `express-rate-limit` or similar). Anyone who
-can reach the API can call it as many times as they want.
+Yes. I wrote a small rate limiter myself in `server/src/utils/rateLimit.js`
+(no extra package) and it's registered in `server/src/app.js` on the `/api`
+path. Each IP gets 100 requests per 15-minute window; the 101st returns a `429`
+with a JSON error. `/api/health` is registered before the limiter, so it is not
+limited. The counts live in memory, so they reset when the server restarts, and
+the limiter doesn't clean up entries for IPs that stop calling. I tested it by
+sending 101 requests to an unknown `/api` path: 100 returned `404` and the last
+one returned `429`.
 
 ## Git hygiene
 

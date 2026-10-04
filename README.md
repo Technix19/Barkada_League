@@ -1,5 +1,12 @@
 # Barkada League
 
+[![Made with AI](https://img.shields.io/badge/Made_with-AI_assistance-blue)](AI-USAGE.md)
+
+Most of the code in this project was written by **Claude Code** (Anthropic),
+working from a spec and phase-by-phase direction I wrote and reviewed. Full
+breakdown of what the AI did, where it got things wrong, and what I did myself:
+[AI-USAGE.md](AI-USAGE.md).
+
 Barkada League is a small web app for a group of friends (a "barkada") who
 play the same 1v1 game and want to keep track of a season leaderboard
 without doing the math by hand.
@@ -169,6 +176,7 @@ All routes are prefixed with `/api`.
 | GET | `/api/players/:id` | One player |
 | GET | `/api/players/:id/stats?seasonId=` | One player's derived stats (wins, losses, win %, streak, rank) for a season |
 | GET | `/api/seasons` | List all seasons |
+| GET | `/api/seasons/active` | The active season (404 if none) |
 | GET | `/api/matches?seasonId=` | List matches for a season, newest first |
 | GET | `/api/matches/:id` | One match |
 | POST | `/api/matches` | Create a match (server derives the winner from scores) |
@@ -214,7 +222,9 @@ confirmation, error state, etc.) are in `docs/screenshots/`.
 - CORS on the Express server is wide open (`cors()` with no config).
   Fine for a local/course project, not something you'd want as-is in
   production.
-- No rate limiting or request throttling.
+- The rate limiter is in-memory: counts reset on restart, and entries for
+  IPs that stop calling are never removed. Fine for a small league, not for
+  a busy public API.
 - No authentication — this was an intentional non-goal for this project
   (see `BARKADA_LEAGUE_PROJECT_SPEC.md`), not an oversight.
 - No screen to add/remove/edit players or seasons through the UI — right
@@ -228,8 +238,14 @@ detail on what's been built and verified.
 
 ## AI usage
 
-This project was built with substantial help from Claude Code
-(Anthropic), used as a pair-programming assistant across the whole stack
-(schema design, Express routes, React components/styling, debugging, and
-this documentation). See `AI-USAGE.md` for details on what the AI did
-versus what required human review/decisions.
+[![Made with AI](https://img.shields.io/badge/Made_with-AI_assistance-blue)](AI-USAGE.md)
+
+This project was built with heavy use of **Claude Code** (Anthropic) as a
+pair-programming assistant — it wrote most of the implementation code across the
+whole stack (schema, Express routes, React components and styling, debugging, and
+this documentation), working from a spec and constraints I wrote and reviewing
+each phase before moving on.
+
+See **[AI-USAGE.md](AI-USAGE.md)** for the full account: what I asked for and what
+came back on each piece of work, three cases where the AI got something wrong and
+what I did instead, and which parts of the project are my own.

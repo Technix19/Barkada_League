@@ -29,6 +29,11 @@ Week 2
   endpoints share the same calculation code
   (`server/src/utils/leagueStats.js`) so they can't disagree with each
   other.
+- **Added `GET /api/seasons/active`** to return the active season, with a
+  `404` if there isn't one.
+- **Added a rate limiter** (`server/src/utils/rateLimit.js`), registered on
+  `/api`. It allows 100 requests per IP every 15 minutes and returns `429`
+  after that. I wrote it myself rather than installing a package.
 - **Swapped the frontend's data layer.** `src/services/mockApi.js` and
   `src/data/mockData.js` were deleted and replaced with
   `src/services/api.js`, which makes real `fetch()` calls. All five
