@@ -226,6 +226,7 @@ router.get("/:id/stats", async (req, res) => {
       losses: entry.losses,
       winPercentage: entry.winPercentage,
       currentStreak: entry.currentStreak,
+      longestWinStreak: entry.longestWinStreak,
     });
   } catch (err) {
     console.error("GET /api/players/:id/stats failed:", err.message);

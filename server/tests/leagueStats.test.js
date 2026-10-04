@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   calculateStreak,
+  calculateLongestWinStreak,
   calculateWinPercentage,
 } from "../src/utils/leagueStats.js";
 
@@ -55,4 +56,34 @@ test("calculateWinPercentage returns 100 for 2 wins out of 2", () => {
   const result = calculateWinPercentage(2, 2);
 
   assert.equal(result, 100);
+});
+
+test("calculateLongestWinStreak returns null when there are no outcomes", () => {
+  const result = calculateLongestWinStreak([]);
+
+  assert.equal(result, null);
+});
+
+test("calculateLongestWinStreak returns 0 when all matches are losses", () => {
+  const result = calculateLongestWinStreak(["L", "L", "L"]);
+
+  assert.equal(result, 0);
+});
+
+test("calculateLongestWinStreak finds one long winning streak", () => {
+  const result = calculateLongestWinStreak(["W", "W", "W", "L"]);
+
+  assert.equal(result, 3);
+});
+
+test("calculateLongestWinStreak finds the longer of two streaks", () => {
+  const result = calculateLongestWinStreak(["W", "W", "L", "W", "W", "W"]);
+
+  assert.equal(result, 3);
+});
+
+test("calculateLongestWinStreak returns the full count when every match is a win", () => {
+  const result = calculateLongestWinStreak(["W", "W", "W", "W"]);
+
+  assert.equal(result, 4);
 });

@@ -17,7 +17,6 @@ const PLAYER_SEASON_STATS = `
 `;
 
 // Gets all matches from the season, newest first.
-// This is used for calculating each player's current streak.
 const SEASON_MATCH_OUTCOMES = `
   SELECT
     id,
@@ -29,7 +28,7 @@ const SEASON_MATCH_OUTCOMES = `
   ORDER BY played_at DESC, id DESC
 `;
 
-// Makes a list of wins and losses for each player.
+// Makes a list of wins and losses for every player.
 function buildOutcomesByPlayer(matches) {
   const outcomesByPlayer = new Map();
 
@@ -41,7 +40,6 @@ function buildOutcomesByPlayer(matches) {
         outcomesByPlayer.set(playerId, []);
       }
 
-      // Add W if the player won, otherwise add L.
       if (match.winnerId === playerId) {
         outcomesByPlayer.get(playerId).push("W");
       } else {
@@ -53,7 +51,7 @@ function buildOutcomesByPlayer(matches) {
   return outcomesByPlayer;
 }
 
-// Calculates the current win or loss streak.
+// Calculates the player's current win or loss streak.
 export function calculateStreak(outcomesNewestFirst) {
   if (!outcomesNewestFirst || outcomesNewestFirst.length === 0) {
     return null;
@@ -76,6 +74,35 @@ export function calculateStreak(outcomesNewestFirst) {
   };
 }
 
+// Finds the longest number of wins in a row.
+export function calculateLongestWinStreak(outcomesNewestFirst) {
+  if (!outcomesNewestFirst || outcomesNewestFirst.length === 0) {
+    return null;
+  }
+
+  // The matches are stored newest first, so reverse a copy
+  // to read them from oldest to newest.
+  const outcomesOldestFirst = [...outcomesNewestFirst].reverse();
+
+  let currentWins = 0;
+  let longestWins = 0;
+
+  for (const outcome of outcomesOldestFirst) {
+    if (outcome === "W") {
+      currentWins++;
+
+      if (currentWins > longestWins) {
+        longestWins = currentWins;
+      }
+    } else {
+      // A loss ends the current winning streak.
+      currentWins = 0;
+    }
+  }
+
+  return longestWins;
+}
+
 // Calculates the player's win percentage.
 export function calculateWinPercentage(wins, matchesPlayed) {
   if (matchesPlayed === 0) {
@@ -85,7 +112,7 @@ export function calculateWinPercentage(wins, matchesPlayed) {
   return Math.round((wins / matchesPlayed) * 10000) / 100;
 }
 
-// Checks if the season exists in the database.
+// Checks if a season exists.
 export async function seasonExists(seasonId) {
   const result = await pool.query("SELECT 1 FROM seasons WHERE id = $1", [
     seasonId,
@@ -94,9 +121,8 @@ export async function seasonExists(seasonId) {
   return result.rows.length > 0;
 }
 
-// Gets all player stats for a season and ranks them.
+// Gets all player stats for a season.
 export async function getSeasonStandings(seasonId) {
-  // Run both queries at the same time.
   const [statsResult, matchesResult] = await Promise.all([
     pool.query(PLAYER_SEASON_STATS, [seasonId]),
     pool.query(SEASON_MATCH_OUTCOMES, [seasonId]),
@@ -104,10 +130,11 @@ export async function getSeasonStandings(seasonId) {
 
   const outcomesByPlayer = buildOutcomesByPlayer(matchesResult.rows);
 
-  // Build the stats for every player.
   const standings = statsResult.rows.map((row) => {
     const matchesPlayed = row.matchesPlayed;
     const wins = row.wins;
+
+    const outcomes = outcomesByPlayer.get(row.id);
 
     return {
       player: {
@@ -115,15 +142,17 @@ export async function getSeasonStandings(seasonId) {
         name: row.name,
         nickname: row.nickname,
       },
+
       matchesPlayed,
       wins,
       losses: matchesPlayed - wins,
       winPercentage: calculateWinPercentage(wins, matchesPlayed),
-      currentStreak: calculateStreak(outcomesByPlayer.get(row.id)),
+      currentStreak: calculateStreak(outcomes),
+      longestWinStreak: calculateLongestWinStreak(outcomes),
     };
   });
 
-  // Sort the players for the leaderboard.
+  // Keep the existing leaderboard order.
   standings.sort((a, b) => {
     if (b.wins !== a.wins) {
       return b.wins - a.wins;
@@ -140,7 +169,7 @@ export async function getSeasonStandings(seasonId) {
     return a.player.name.localeCompare(b.player.name);
   });
 
-  // Add the rank after sorting.
+  // Add each player's rank after sorting.
   return standings.map((entry, index) => {
     return {
       rank: index + 1,
