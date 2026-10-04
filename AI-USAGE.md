@@ -516,6 +516,17 @@ Code I wrote myself, reviewed with AI but not written by it:
   in `GET /api/players`. There is no player delete route, so I removed it with a direct SQL
   delete by id, and the count went back to 6.
 
+### Self-written 10 — Longest win streak
+
+- **What I wrote:** `calculateLongestWinStreak` in `server/src/utils/leagueStats.js`, its
+  use in `getSeasonStandings`, the `longestWinStreak` field in `GET /api/players/:id/stats`
+  in `server/src/routes/players.js`, and the unit tests in `server/tests/leagueStats.test.js`.
+  Commit: https://github.com/Technix19/Barkada_League/commit/95e82db6c779865e651b5ab4f98767ffa82092c4
+- **Why it's built that way:** Why it’s built that way: I made longestWinStreak a separate function because it measures something different from the current streak. The current streak only checks what is happening right now, while the longest win streak looks through all of the player’s results and finds the highest number of wins in a row. I return null when a player has no matches, but 0 when they have played and never won, because those are two different cases. I also kept it out of the leaderboard sorting so the existing ranking rules would not change.
+- **What I tested:** `npm test` passes all 21 tests, including a case where the longer
+  streak comes second. The live leaderboard and `/stats` return the field, and the player
+  count stayed at 6.
+
 ### AI-written piece I understand best
 
 - File: src/styles/variables.css
