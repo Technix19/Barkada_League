@@ -433,6 +433,18 @@ Code I wrote myself, reviewed with AI but not written by it:
   Commits: https://github.com/Technix19/Barkada_League/commit/b4fa954b032b83d48396dcdf865cdf1f0b3509b1 (tests) and https://github.com/Technix19/Barkada_League/commit/c3116965dfe87f55d7ea6aa769df73d35dd4b89e (script)
 - **Why it's built that way:** I focused the tests on functions that can run by themselves without needing the database. This made the tests simpler and safer because they only check the logic and do not change any real data. I also used Node's built-in test tools so I did not have to install another testing library. After the tests were reviewed, I also improved some of the assertions so they checked the exact result more clearly.
 
+### Self-written 4 — Player matches route
+
+- **What I wrote:** the `GET /:id/matches` handler in `server/src/routes/players.js`.
+  It returns a player's matches, newest first, with an optional `seasonId` filter.
+  Commit: https://github.com/Technix19/Barkada_League/commit/982728fd3c324f489aa96204ecd658c7325ebd9c
+- **Why it's built that way:** The route first checks if the player actually exists, so if the ID is invalid or missing in the database it returns a 404 instead of just showing an empty array. I used the same `$1` value to check both `player1_id` and `player2_id` since the player can be on either side of the match. The season condition is only added when a `seasonId` is provided. I also kept the `::text` cast for the date so it stays in `YYYY-MM-DD` format and does not get affected by timezone changes.
+- **What I tested:** Against the running server. The matches count for player 1 matched
+  the `/stats` count (6 and 6). Unknown player, bad player id, and bad season id all
+  returned the expected 404 or 400.
+- **What's still open:** A `seasonId` that doesn't exist returns an empty list here, but
+  `/stats` returns 404. I haven't changed this yet.
+
 ### AI-written piece I understand best
 
 - File: src/styles/variables.css
