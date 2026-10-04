@@ -442,8 +442,11 @@ Code I wrote myself, reviewed with AI but not written by it:
 - **What I tested:** Against the running server. The matches count for player 1 matched
   the `/stats` count (6 and 6). Unknown player, bad player id, and bad season id all
   returned the expected 404 or 400.
-- **What's still open:** A `seasonId` that doesn't exist returns an empty list here, but
-  `/stats` returns 404. I haven't changed this yet.
+- **Fixed afterwards:** An unknown `seasonId` returned an empty list, while `/stats`
+  returned 404. I added the same season check to this route, and it's in
+  https://github.com/Technix19/Barkada_League/commit/f2f16209d0b31e41e3c01964c016066459ae850e
+  I found a bug in my first version of that check: it ran even without a `seasonId`,
+  so every request returned 404. I caught it when I retested and fixed it.
 
 ### AI-written piece I understand best
 
