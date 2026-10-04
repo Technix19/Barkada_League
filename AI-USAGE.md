@@ -488,6 +488,18 @@ Code I wrote myself, reviewed with AI but not written by it:
 - **A note on the commit message:** It says "not AI". That's not accurate. The AI gave
   me the rules and reviewed the rewrite, the same as with `validateMatch.js`.
 
+### Self-written 8 — Match write handlers
+
+- **What I wrote:** I rewrote the `POST /`, `PATCH /:id`, and `DELETE /:id` handlers in
+  `server/src/routes/matches.js`, working from the match rules in my spec and the
+  step-by-step guidance the AI gave me. The AI reviewed the rewrite.
+  Commits: https://github.com/Technix19/Barkada_League/commit/03dd00d (POST) and https://github.com/Technix19/Barkada_League/commit/120a0c67b104a51bb2f0c5ca266123a245156c02 (PATCH and DELETE)
+- **Why it's built that way:** The server always calculates the winner itself whenever a match is created or updated, so the user cannot manually set the winner in the request. For `PATCH`, it only changes the fields that were actually sent and keeps the rest of the existing match data. After that, it validates the full updated match before saving it, so sending something like `null` will cause a validation error instead of removing the value. Before saving any changes, it also checks that the season and both players really exist.
+- **What I tested:** Against the running server, I sent invalid requests to all three
+  handlers and got the expected 400 and 404 responses, and the match count stayed at 15.
+  The success paths (create, edit, delete) are not tested yet, because they change the
+  database.
+
 ### AI-written piece I understand best
 
 - File: src/styles/variables.css
