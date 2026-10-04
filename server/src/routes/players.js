@@ -1,13 +1,16 @@
 import { Router } from "express";
 import pool from "../db.js";
 import { parsePositiveInt } from "../utils/validation.js";
+import { isValidDate } from "../utils/validateMatch.js";
 import { seasonExists, getSeasonStandings } from "../utils/leagueStats.js";
 
 const router = Router();
 
-// join_date is cast to text so the pg driver returns a plain "YYYY-MM-DD"
-// string instead of a JS Date object -- letting it parse as a Date risks a
-// timezone-driven off-by-one-day shift when it is later serialized.
+// Fields that are allowed when creating a player.
+const PLAYER_FIELDS = ["name", "nickname", "joinDate"];
+
+// Main player query used by the player routes.
+// join_date is changed to text so it stays as YYYY-MM-DD.
 const PLAYER_SELECT = `
   SELECT
     id,
@@ -17,61 +20,201 @@ const PLAYER_SELECT = `
   FROM players
 `;
 
+// Checks if the player request body has the correct fields.
+function checkPlayerBodyShape(body) {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    return "Request body must be a JSON object";
+  }
+
+  const unsupportedFields = Object.keys(body).filter((field) => {
+    return !PLAYER_FIELDS.includes(field);
+  });
+
+  if (unsupportedFields.length > 0) {
+    return `Unsupported field(s): ${unsupportedFields.join(", ")}`;
+  }
+
+  return null;
+}
+
+// Get all players.
 router.get("/", async (req, res) => {
   try {
-    const { rows } = await pool.query(`${PLAYER_SELECT} ORDER BY name ASC`);
-    res.json(rows);
+    const result = await pool.query(`${PLAYER_SELECT} ORDER BY name ASC`);
+
+    res.json(result.rows);
   } catch (err) {
     console.error("GET /api/players failed:", err.message);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.get("/:id", async (req, res) => {
-  const id = parsePositiveInt(req.params.id);
-  if (id === null) {
-    return res.status(400).json({ error: "Invalid player id" });
+// Create a new player.
+router.post("/", async (req, res) => {
+  const shapeError = checkPlayerBodyShape(req.body);
+
+  if (shapeError) {
+    return res.status(400).json({
+      error: shapeError,
+    });
+  }
+
+  // Name is required.
+  if (!Object.prototype.hasOwnProperty.call(req.body, "name")) {
+    return res.status(400).json({
+      error: "name is required",
+    });
+  }
+
+  // Name should be a real string and not just spaces.
+  if (typeof req.body.name !== "string" || req.body.name.trim() === "") {
+    return res.status(400).json({
+      error: "name must be a non-empty string",
+    });
+  }
+
+  const name = req.body.name.trim();
+
+  if (name.length > 100) {
+    return res.status(400).json({
+      error: "name must be 100 characters or less",
+    });
+  }
+
+  // Nickname is optional.
+  // Empty nicknames will be saved as null.
+  let nickname = null;
+
+  if (req.body.nickname !== undefined && req.body.nickname !== null) {
+    if (typeof req.body.nickname !== "string") {
+      return res.status(400).json({
+        error: "nickname must be a string or null",
+      });
+    }
+
+    const trimmedNickname = req.body.nickname.trim();
+
+    if (trimmedNickname.length > 100) {
+      return res.status(400).json({
+        error: "nickname must be 100 characters or less",
+      });
+    }
+
+    if (trimmedNickname !== "") {
+      nickname = trimmedNickname;
+    }
+  }
+
+  const { joinDate } = req.body;
+
+  // Join date is optional, but if it is sent it must be valid.
+  if (joinDate !== undefined && !isValidDate(joinDate)) {
+    return res.status(400).json({
+      error: "joinDate must be a valid date in YYYY-MM-DD format",
+    });
   }
 
   try {
-    const { rows } = await pool.query(`${PLAYER_SELECT} WHERE id = $1`, [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Player not found" });
+    let inserted;
+
+    // If no join date is provided, let the database use its default.
+    if (joinDate === undefined) {
+      inserted = await pool.query(
+        `
+          INSERT INTO players (name, nickname)
+          VALUES ($1, $2)
+          RETURNING id
+        `,
+        [name, nickname],
+      );
+    } else {
+      inserted = await pool.query(
+        `
+          INSERT INTO players (name, nickname, join_date)
+          VALUES ($1, $2, $3)
+          RETURNING id
+        `,
+        [name, nickname, joinDate],
+      );
     }
-    res.json(rows[0]);
+
+    const newPlayerId = inserted.rows[0].id;
+
+    // Read the player again so the response is the same
+    // format as GET /api/players/:id.
+    const result = await pool.query(`${PLAYER_SELECT} WHERE id = $1`, [
+      newPlayerId,
+    ]);
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error("POST /api/players failed:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get one player using their id.
+router.get("/:id", async (req, res) => {
+  const id = parsePositiveInt(req.params.id);
+
+  if (id === null) {
+    return res.status(400).json({
+      error: "Invalid player id",
+    });
+  }
+
+  try {
+    const result = await pool.query(`${PLAYER_SELECT} WHERE id = $1`, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: "Player not found",
+      });
+    }
+
+    res.json(result.rows[0]);
   } catch (err) {
     console.error("GET /api/players/:id failed:", err.message);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// Derived per-player season statistics, reusing the exact same computation
-// as GET /api/leaderboard (see utils/leagueStats.js) so the two endpoints
-// can never disagree. A player who exists but has no matches this season
-// still returns 200 with zeroed stats -- only a genuinely unknown player
-// id or season id is a 404.
+// Get a player's stats for one season.
 router.get("/:id/stats", async (req, res) => {
   const id = parsePositiveInt(req.params.id);
+
   if (id === null) {
-    return res.status(400).json({ error: "Invalid player id" });
+    return res.status(400).json({
+      error: "Invalid player id",
+    });
   }
 
   const seasonId = parsePositiveInt(req.query.seasonId);
+
   if (seasonId === null) {
-    return res
-      .status(400)
-      .json({ error: "seasonId is required and must be a positive integer" });
+    return res.status(400).json({
+      error: "seasonId is required and must be a positive integer",
+    });
   }
 
   try {
+    // Check if the season exists first.
     if (!(await seasonExists(seasonId))) {
-      return res.status(404).json({ error: "Season not found" });
+      return res.status(404).json({
+        error: "Season not found",
+      });
     }
 
     const standings = await getSeasonStandings(seasonId);
-    const entry = standings.find((row) => row.player.id === id);
+
+    const entry = standings.find((row) => {
+      return row.player.id === id;
+    });
+
     if (!entry) {
-      return res.status(404).json({ error: "Player not found" });
+      return res.status(404).json({
+        error: "Player not found",
+      });
     }
 
     res.json({
@@ -86,15 +229,21 @@ router.get("/:id/stats", async (req, res) => {
     });
   } catch (err) {
     console.error("GET /api/players/:id/stats failed:", err.message);
-    res.status(500).json({ error: "Internal server error" });
+
+    res.status(500).json({
+      error: "Internal server error",
+    });
   }
 });
 
+// Get all matches played by one player.
 router.get("/:id/matches", async (req, res) => {
   const id = parsePositiveInt(req.params.id);
 
   if (id === null) {
-    return res.status(400).json({ error: "Invalid player id" });
+    return res.status(400).json({
+      error: "Invalid player id",
+    });
   }
 
   const { seasonId } = req.query;
@@ -104,27 +253,33 @@ router.get("/:id/matches", async (req, res) => {
     parsedSeasonId = parsePositiveInt(seasonId);
 
     if (parsedSeasonId === null) {
-      return res.status(400).json({ error: "Invalid seasonId" });
+      return res.status(400).json({
+        error: "Invalid seasonId",
+      });
     }
   }
 
   try {
-    // Check if the player exists
+    // Check if the player exists.
     const playerResult = await pool.query(
       "SELECT id FROM players WHERE id = $1",
       [id],
     );
 
     if (playerResult.rows.length === 0) {
-      return res.status(404).json({ error: "Player not found" });
+      return res.status(404).json({
+        error: "Player not found",
+      });
     }
 
-    // If a season was given, check if it exists
+    // Check the season if one was given.
     if (parsedSeasonId !== null) {
       const exists = await seasonExists(parsedSeasonId);
 
       if (!exists) {
-        return res.status(404).json({ error: "Season not found" });
+        return res.status(404).json({
+          error: "Season not found",
+        });
       }
     }
 
@@ -159,7 +314,7 @@ router.get("/:id/matches", async (req, res) => {
 
     const params = [id];
 
-    // Add the season filter only if one was provided
+    // Add a season filter only when seasonId was provided.
     if (parsedSeasonId !== null) {
       query += " AND m.season_id = $2";
       params.push(parsedSeasonId);
@@ -203,20 +358,28 @@ router.get("/:id/matches", async (req, res) => {
     res.json(matches);
   } catch (err) {
     console.error("GET /api/players/:id/matches failed:", err.message);
-    res.status(500).json({ error: "Internal server error" });
+
+    res.status(500).json({
+      error: "Internal server error",
+    });
   }
 });
 
+// Get matches played between two specific players.
 router.get("/:id/vs/:opponentId", async (req, res) => {
   const id = parsePositiveInt(req.params.id);
   const opponentId = parsePositiveInt(req.params.opponentId);
 
   if (id === null || opponentId === null) {
-    return res.status(400).json({ error: "Invalid player id" });
+    return res.status(400).json({
+      error: "Invalid player id",
+    });
   }
 
   if (id === opponentId) {
-    return res.status(400).json({ error: "Players must be different" });
+    return res.status(400).json({
+      error: "Players must be different",
+    });
   }
 
   const { seasonId } = req.query;
@@ -226,29 +389,37 @@ router.get("/:id/vs/:opponentId", async (req, res) => {
     parsedSeasonId = parsePositiveInt(seasonId);
 
     if (parsedSeasonId === null) {
-      return res.status(400).json({ error: "Invalid seasonId" });
+      return res.status(400).json({
+        error: "Invalid seasonId",
+      });
     }
   }
 
   try {
-    // Check if both players exist
+    // Both players must exist.
     const playersResult = await pool.query(
-      `SELECT id, name, nickname
-       FROM players
-       WHERE id = $1 OR id = $2`,
+      `
+        SELECT id, name, nickname
+        FROM players
+        WHERE id = $1 OR id = $2
+      `,
       [id, opponentId],
     );
 
     if (playersResult.rows.length !== 2) {
-      return res.status(404).json({ error: "Player not found" });
+      return res.status(404).json({
+        error: "Player not found",
+      });
     }
 
-    // Check if the season exists if one was provided
+    // Check the season if one was given.
     if (parsedSeasonId !== null) {
       const exists = await seasonExists(parsedSeasonId);
 
       if (!exists) {
-        return res.status(404).json({ error: "Season not found" });
+        return res.status(404).json({
+          error: "Season not found",
+        });
       }
     }
 
@@ -287,6 +458,7 @@ router.get("/:id/vs/:opponentId", async (req, res) => {
 
     const params = [id, opponentId];
 
+    // Add the season condition if needed.
     if (parsedSeasonId !== null) {
       query += " AND m.season_id = $3";
       params.push(parsedSeasonId);
@@ -300,6 +472,7 @@ router.get("/:id/vs/:opponentId", async (req, res) => {
     let opponentWins = 0;
 
     const matches = result.rows.map((row) => {
+      // Count wins using winner_id.
       if (row.winnerId === id) {
         playerWins++;
       }
@@ -338,8 +511,13 @@ router.get("/:id/vs/:opponentId", async (req, res) => {
       };
     });
 
-    const player = playersResult.rows.find((row) => row.id === id);
-    const opponent = playersResult.rows.find((row) => row.id === opponentId);
+    const player = playersResult.rows.find((row) => {
+      return row.id === id;
+    });
+
+    const opponent = playersResult.rows.find((row) => {
+      return row.id === opponentId;
+    });
 
     res.json({
       summary: {
@@ -365,7 +543,9 @@ router.get("/:id/vs/:opponentId", async (req, res) => {
   } catch (err) {
     console.error("GET /api/players/:id/vs/:opponentId failed:", err.message);
 
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({
+      error: "Internal server error",
+    });
   }
 });
 

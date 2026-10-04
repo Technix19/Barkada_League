@@ -2,6 +2,7 @@
 // The server is the sole authority on winnerId -- callers derive it with
 // deriveWinnerId() after validation passes; it is never accepted from the
 // client (see checkBodyShape).
+
 export const MATCH_FIELDS = [
   "seasonId",
   "player1Id",
@@ -35,7 +36,7 @@ function isNonNegativeInteger(value) {
   return Number.isInteger(value) && value >= 0;
 }
 
-function isValidDate(value) {
+export function isValidDate(value) {
   if (typeof value !== "string") {
     return false;
   }
