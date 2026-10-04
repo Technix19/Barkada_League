@@ -459,6 +459,20 @@ Code I wrote myself, reviewed with AI but not written by it:
   two matches, the two win counts add up to the total, and the same-player, unknown
   player, and unknown season cases return the expected 400 and 404.
 
+### Self-written 6 — Match validation rewrite
+
+- **What I wrote:** I rewrote `server/src/utils/validateMatch.js` myself, working from
+  the validation rules in my spec and the step-by-step rule list the AI gave me. I
+  didn't copy the original file. The AI reviewed my version and confirmed it against
+  the rules. Its `checkBodyShape`, `validateCompleteMatch`, and `deriveWinnerId`
+  functions are the ones `matches.js` uses. The commit message says "without AI",
+  which isn't accurate; the rewrite was done with AI guidance and review.
+  Commit: https://github.com/Technix19/Barkada_League/commit/f2c0bc274b8b66be5451e989a65ef133f153ae68
+- **Why it's built that way:** The validation rules are checked in a specific order, so the function stops as soon as it finds the first problem. For example, if the same player is selected and the scores are also tied, it will return the player error first. For the date, it checks whether the date stays the same after JavaScript converts it, which helps catch invalid dates like 2026-02-30.
+- **What I tested:** `npm test` passes all 16 tests, and the AI checked the file against
+  the rule list before I committed it. The original AI-written version is still described in
+  Section 1 and Section 2.
+
 ### AI-written piece I understand best
 
 - File: src/styles/variables.css
