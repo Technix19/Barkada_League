@@ -109,8 +109,9 @@ router.get("/:id/matches", async (req, res) => {
   }
 
   try {
+    // Check if the player exists
     const playerResult = await pool.query(
-      "SELECT 1 FROM players WHERE id = $1",
+      "SELECT id FROM players WHERE id = $1",
       [id],
     );
 
@@ -118,15 +119,16 @@ router.get("/:id/matches", async (req, res) => {
       return res.status(404).json({ error: "Player not found" });
     }
 
-    let seasonClause = "";
-    const params = [id];
-
+    // If a season was given, check if it exists
     if (parsedSeasonId !== null) {
-      seasonClause = "AND m.season_id = $2";
-      params.push(parsedSeasonId);
+      const exists = await seasonExists(parsedSeasonId);
+
+      if (!exists) {
+        return res.status(404).json({ error: "Season not found" });
+      }
     }
 
-    const query = `
+    let query = `
       SELECT
         m.id,
         m.season_id AS "seasonId",
@@ -153,13 +155,52 @@ router.get("/:id/matches", async (req, res) => {
       JOIN players w ON w.id = m.winner_id
 
       WHERE (m.player1_id = $1 OR m.player2_id = $1)
-      ${seasonClause}
-
-      ORDER BY m.played_at DESC, m.id DESC
     `;
 
+    const params = [id];
+
+    // Add the season filter only if one was provided
+    if (parsedSeasonId !== null) {
+      query += " AND m.season_id = $2";
+      params.push(parsedSeasonId);
+    }
+
+    query += " ORDER BY m.played_at DESC, m.id DESC";
+
     const result = await pool.query(query, params);
-    res.json(result.rows);
+
+    const matches = result.rows.map((row) => {
+      return {
+        id: row.id,
+        seasonId: row.seasonId,
+
+        player1: {
+          id: row.player1Id,
+          name: row.player1Name,
+          nickname: row.player1Nickname,
+        },
+
+        player2: {
+          id: row.player2Id,
+          name: row.player2Name,
+          nickname: row.player2Nickname,
+        },
+
+        player1Score: row.player1Score,
+        player2Score: row.player2Score,
+
+        winner: {
+          id: row.winnerId,
+          name: row.winnerName,
+          nickname: row.winnerNickname,
+        },
+
+        playedAt: row.playedAt,
+        createdAt: row.createdAt,
+      };
+    });
+
+    res.json(matches);
   } catch (err) {
     console.error("GET /api/players/:id/matches failed:", err.message);
     res.status(500).json({ error: "Internal server error" });
