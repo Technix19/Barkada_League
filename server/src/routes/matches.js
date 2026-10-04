@@ -255,38 +255,48 @@ router.post("/", async (req, res) => {
   }
 });
 
+// Update an existing match.
 router.patch("/:id", async (req, res) => {
   const id = parsePositiveInt(req.params.id);
+
   if (id === null) {
     return res.status(400).json({ error: "Invalid match id" });
   }
 
+  // Check if the request body has valid fields.
   const shapeError = checkBodyShape(req.body);
+
   if (shapeError) {
     return res.status(400).json({ error: shapeError });
   }
 
-  const providedFields = MATCH_FIELDS.filter((field) =>
-    Object.prototype.hasOwnProperty.call(req.body, field),
-  );
+  // Find which match fields were actually sent by the user.
+  const providedFields = MATCH_FIELDS.filter((field) => {
+    return Object.prototype.hasOwnProperty.call(req.body, field);
+  });
+
   if (providedFields.length === 0) {
-    return res.status(400).json({ error: "No updatable fields provided" });
+    return res.status(400).json({
+      error: "No updatable fields provided",
+    });
   }
 
   try {
+    // Check if the match exists first.
     const existingResult = await pool.query(`${MATCH_SELECT} WHERE m.id = $1`, [
       id,
     ]);
+
     if (existingResult.rows.length === 0) {
-      return res.status(404).json({ error: "Match not found" });
+      return res.status(404).json({
+        error: "Match not found",
+      });
     }
+
     const existing = existingResult.rows[0];
 
-    // Merge only the fields the client actually sent over the existing
-    // values, then validate the resulting COMPLETE match. A field sent
-    // as null overrides the existing value and correctly fails
-    // validation rather than being treated as "leave unchanged".
-    const merged = {
+    // Start with the current match data.
+    const updatedMatch = {
       seasonId: existing.seasonId,
       player1Id: existing.player1Id,
       player2Id: existing.player2Id,
@@ -294,60 +304,94 @@ router.patch("/:id", async (req, res) => {
       player2Score: existing.player2Score,
       playedAt: existing.playedAt,
     };
+
+    // Replace only the fields that were provided.
     for (const field of providedFields) {
-      merged[field] = req.body[field];
+      updatedMatch[field] = req.body[field];
     }
 
-    const validationError = validateCompleteMatch(merged);
+    // Validate the complete updated match.
+    const validationError = validateCompleteMatch(updatedMatch);
+
     if (validationError) {
-      return res.status(400).json({ error: validationError });
+      return res.status(400).json({
+        error: validationError,
+      });
     }
 
-    const missingRefError = await findMissingReference(merged);
+    // Make sure the season and players still exist.
+    const missingRefError = await findMissingReference(updatedMatch);
+
     if (missingRefError) {
-      return res.status(400).json({ error: missingRefError });
+      return res.status(400).json({
+        error: missingRefError,
+      });
     }
 
-    const winnerId = deriveWinnerId(merged);
+    // Recalculate the winner in case the scores changed.
+    const winnerId = deriveWinnerId(updatedMatch);
+
     await pool.query(
-      `UPDATE matches
-       SET season_id = $1, player1_id = $2, player2_id = $3,
-           player1_score = $4, player2_score = $5, winner_id = $6, played_at = $7
-       WHERE id = $8`,
+      `
+        UPDATE matches
+        SET
+          season_id = $1,
+          player1_id = $2,
+          player2_id = $3,
+          player1_score = $4,
+          player2_score = $5,
+          winner_id = $6,
+          played_at = $7
+        WHERE id = $8
+      `,
       [
-        merged.seasonId,
-        merged.player1Id,
-        merged.player2Id,
-        merged.player1Score,
-        merged.player2Score,
+        updatedMatch.seasonId,
+        updatedMatch.player1Id,
+        updatedMatch.player2Id,
+        updatedMatch.player1Score,
+        updatedMatch.player2Score,
         winnerId,
-        merged.playedAt,
+        updatedMatch.playedAt,
         id,
       ],
     );
 
-    const { rows } = await pool.query(`${MATCH_SELECT} WHERE m.id = $1`, [id]);
-    res.json(mapMatchRow(rows[0]));
+    // Get the updated match and return it.
+    const result = await pool.query(`${MATCH_SELECT} WHERE m.id = $1`, [id]);
+
+    const match = mapMatchRow(result.rows[0]);
+
+    res.json(match);
   } catch (err) {
     console.error("PATCH /api/matches/:id failed:", err.message);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
+// Delete a match using its id.
 router.delete("/:id", async (req, res) => {
   const id = parsePositiveInt(req.params.id);
+
   if (id === null) {
-    return res.status(400).json({ error: "Invalid match id" });
+    return res.status(400).json({
+      error: "Invalid match id",
+    });
   }
 
   try {
-    const { rows } = await pool.query(
+    const result = await pool.query(
       "DELETE FROM matches WHERE id = $1 RETURNING id",
       [id],
     );
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Match not found" });
+
+    // If nothing was deleted, the match does not exist.
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: "Match not found",
+      });
     }
+
+    // 204 means the delete worked and there is no response body.
     res.status(204).end();
   } catch (err) {
     console.error("DELETE /api/matches/:id failed:", err.message);
