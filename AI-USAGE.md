@@ -501,6 +501,21 @@ Code I wrote myself, reviewed with AI but not written by it:
   made player 2 the winner under the same id, and the delete returned 204. The match count
   went back to 15.
 
+### Self-written 9 — Create player route
+
+- **What I wrote:** the `POST /` handler in `server/src/routes/players.js`, with its own
+  body-shape check. It accepts `name`, an optional `nickname`, and an optional `joinDate`,
+  and returns 201 with the new player. I wrote the rules first, then the code, and the AI
+  reviewed them. I also exported `isValidDate` from `validateMatch.js` so both routes
+  share one date rule.
+  Commit: https://github.com/Technix19/Barkada_League/commit/bac94db3961e3c1bdf554a559830e3bd646bd869
+- **Why it's built that way:** Before adding the player to the database, I check all the fields first to make sure the values are valid. The name and nickname are trimmed so extra spaces are removed, and if the nickname is left blank, I save it as `null`. I still allow two players to have the same name because each player has their own unique id. After creating the player, I fetch it again using the same query as `GET /api/players/:id` so the returned data uses the same format.
+- **What I tested:** Against the running server, six invalid requests returned the expected
+  400 messages and the player count stayed at 6. Then I created one test player, which
+  returned 201 with the name trimmed and the blank nickname stored as `null`, and it showed up
+  in `GET /api/players`. There is no player delete route, so I removed it with a direct SQL
+  delete by id, and the count went back to 6.
+
 ### AI-written piece I understand best
 
 - File: src/styles/variables.css
