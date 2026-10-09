@@ -1,63 +1,101 @@
 # Barkada League
 
-[![Made with AI](https://img.shields.io/badge/Made_with-AI_assistance-blue)](AI-USAGE.md)
+A season leaderboard for a small group of friends who play the same 1v1 game
+and want their standings, win percentage, and streaks worked out automatically
+from recorded matches instead of by hand.
 
-Most of the code in this project was written by **Claude Code** (Anthropic),
-working from a spec and phase-by-phase direction I wrote and reviewed. Full
-breakdown of what the AI did, where it got things wrong, and what I did myself:
-[AI-USAGE.md](AI-USAGE.md).
+**Live site:** https://barkada-league.vercel.app
+**API:** https://barkada-league-api.onrender.com/api/health
+**Demo video:** https://drive.google.com/file/d/1ukJjqWWlt9BiXDnd4RGam--3MfiwoI9Q/view?usp=sharing
 
-Barkada League is a small web app for a group of friends (a "barkada") who
-play the same 1v1 game and want to keep track of a season leaderboard
-without doing the math by hand.
+> The backend is on Render's free tier, which spins down after inactivity. The
+> first request after a quiet period can take 50+ seconds while it wakes back
+> up — that's expected, not a bug.
 
-You record a match (who played, what the score was), and the app figures
-out the winner, updates the standings, calculates win percentage, and
-tracks each player's current win/loss streak — all from the raw match
-history in the database, not from numbers typed in manually.
+![Leaderboard screenshot](docs/screenshots/leaderboard-desktop.png)
 
-Built with:
+## What it does
 
-- **React + Vite** (frontend)
-- **Node.js + Express** (REST API)
-- **PostgreSQL**, hosted on **Supabase** (Supabase is only used as the
-  Postgres host here — the frontend never talks to Supabase directly, and
-  there's no Supabase Auth/Storage/SDK involved)
+- Record a match: pick two different players, enter both scores (they can't
+  tie), and a date. The server works out the winner from the scores — the
+  client is never trusted to say who won.
+- Browse the leaderboard: rank, wins, losses, win %, and current streak, all
+  calculated fresh from the match history, not stored anywhere.
+- Browse match history, newest first, with edit and delete.
+- Look up one player's season stats, recent matches, and head-to-head record
+  against another player.
 
-## Live deployment
+## Built with
 
-- **Live site:** https://barkada-league.vercel.app
-- **API:** https://barkada-league-api.onrender.com (try
-  [`/api/health`](https://barkada-league-api.onrender.com/api/health))
+React and Vite on the front end, Express and PostgreSQL on the back end. The
+client is on **Vercel**, the API on **Render**, and the database on
+**Supabase** (used only as a Postgres host — no Supabase Auth, Storage, or
+client SDK is involved; the frontend only ever talks to the Express API).
 
-The frontend runs on Vercel and the backend on Render, since Render runs the
-Express server as a persistent process rather than a short-lived function —
-that matters here because the rate limiter keeps its counts in memory and the
-`pg` connection pool is built to be reused across requests, both of which
-depend on the process staying alive between calls. The backend is on Render's
-free tier, so it spins down after inactivity; the first request after a quiet
-period can take 50+ seconds while it wakes back up.
+Render, not a serverless platform, because the API depends on a process that
+stays alive between requests: the rate limiter in
+`server/src/utils/rateLimit.js` keeps its counts in an in-memory `Map`, and
+the `pg` connection pool in `server/src/db.js` is built to be reused across
+requests rather than recreated per call.
 
-## Overview
+## Running it yourself
 
-There are five screens:
+**Prerequisites:** Node.js 18+, and a PostgreSQL database — a free Supabase
+project works, or any Postgres you have a connection string for, since the
+backend uses plain `pg` with nothing Supabase-specific.
 
-- **Leaderboard** (`/`) — current season standings: rank, wins, losses,
-  win %, current streak, plus a short list of recent matches.
-- **Match History** (`/matches`) — every recorded match for the season,
-  newest first, with edit/delete controls.
-- **Record Match** (`/matches/new`) — form to log a finished match.
-- **Edit Match** (`/matches/:id/edit`) — edit an existing match's
-  players/scores/date.
-- **Player Profile** (`/players/:id`) — one player's season stats and
-  match history.
+```bash
+# 1. install both the frontend and backend dependencies
+npm install
+npm run server:install
 
-The important design decision here: **wins, losses, win %, rank, and
-streak are never stored in the database.** They're calculated on every
-request from the raw rows in the `matches` table. If you edit or delete a
-match, the leaderboard changes automatically the next time you load it —
-there's no "recalculate stats" button because there's nothing to
-recalculate by hand.
+# 2. set up the environment files (see Environment variables below)
+cp .env.example .env                # root — VITE_API_URL
+cp server/.env.example server/.env  # server — PORT, DATABASE_URL
+
+# 3. create the schema and seed data, run against your Postgres database
+#    (Supabase SQL Editor, psql, or any client) in this order:
+#    database/schema.sql, then database/seed.sql
+#    — this creates 6 players, 1 season, and 15 matches
+
+# 4. run the backend (terminal 1) and frontend (terminal 2)
+npm run dev:server   # http://localhost:3001
+npm run dev          # http://localhost:5173
+```
+
+Check the API on its own before blaming the frontend:
+
+```bash
+curl http://localhost:3001/api/health
+# {"status":"ok","database":"connected"} when the server and DB are both reachable
+```
+
+## Environment variables
+
+None of these are committed. `.env.example` in both the root and `server/`
+lists them with placeholder values.
+
+| Name           | Where               | What it is                                                                                    |
+| -------------- | ------------------- | --------------------------------------------------------------------------------------------- |
+| `DATABASE_URL` | server              | PostgreSQL connection string. Contains a password — never commit it                           |
+| `PORT`         | server              | local dev only. Render sets this itself; don't set it in the Render dashboard                 |
+| `VITE_API_URL` | root, at build time | the API's public URL, no trailing slash. Compiled into the built JS and public — not a secret |
+
+## Deploying
+
+**Client, to Vercel.** Import the repo in the Vercel dashboard, Vite preset
+(auto-detected from `vite.config.js`), default build command and output
+directory. Add `VITE_API_URL` pointed at the deployed API before the first
+deploy.
+
+**API, to Render.** Create a web service from the same repo. Build command
+`cd server && npm install`, start command `cd server && npm start`. Add
+`DATABASE_URL` in the Environment tab — Render supplies `PORT` itself, so
+don't set it.
+
+**Database.** Already hosted on Supabase; no separate deploy step. Run
+`database/schema.sql` then `database/seed.sql` once against it, the same as
+local setup.
 
 ## Project structure
 
@@ -75,142 +113,49 @@ Barkada_League/
 │       ├── server.js       # starts the server
 │       ├── db.js           # shared pg Pool
 │       ├── routes/         # players.js, seasons.js, matches.js, leaderboard.js
-│       └── utils/          # validation + shared leaderboard/streak math
+│       ├── utils/          # validation + shared leaderboard/streak math
+│       └── tests/          # node:test unit tests
 ├── database/
 │   ├── schema.sql          # table definitions + constraints + indexes
 │   └── seed.sql            # sample data (6 players, 1 season, 15 matches)
 ├── docs/screenshots/        # screenshots of the finished app
-├── project/                 # weekly report + security checklist
+├── project/                 # weekly report, security checklist, live links
 ├── journal/                  # weekly reflection
 └── AI-USAGE.md
 ```
-
-## Prerequisites
-
-- Node.js (v18 or newer should work fine)
-- A Supabase project (free tier is enough) — or any PostgreSQL database
-  you can get a connection string for, since the backend just uses plain
-  `pg` and doesn't depend on anything Supabase-specific
-
-## Setup and installation
-
-Clone the repo, then install both the frontend and backend dependencies:
-
-```bash
-npm install
-npm run server:install
-```
-
-## Environment / configuration
-
-There are **two** `.env` files — one for the frontend, one for the
-backend. Neither is committed to git (see `.gitignore`), and both have a
-matching `.env.example` you can copy from.
-
-**Root `.env`** (frontend — tells React where the API is):
-
-```
-VITE_API_URL=http://localhost:3001
-```
-
-**`server/.env`** (backend — database connection):
-
-```
-PORT=3001
-DATABASE_URL=postgresql://<your-supabase-connection-string>
-```
-
-You get the `DATABASE_URL` from your Supabase project dashboard under
-**Connect → PostgreSQL connection string**. Don't put the real value in
-`.env.example` — only in `.env`.
-
-`VITE_API_URL` is not a secret (it's just a URL the browser is allowed to
-know), but `DATABASE_URL` absolutely is — never commit it or paste it
-somewhere public.
-
-## Database setup
-
-Run the SQL files against your Postgres database, in this order, using
-the Supabase SQL Editor (or `psql`, or any Postgres client):
-
-1. `database/schema.sql` — creates the `players`, `seasons`, and
-   `matches` tables, their foreign keys, check constraints (no tied
-   scores, no playing yourself, winner has to be one of the two players),
-   and indexes.
-2. `database/seed.sql` — inserts 6 players, one active season ("Season
-   1"), and 15 sample matches so the app has something to show
-   immediately.
-
-After running both, you should have exactly 6 players, 1 season, and 15
-matches.
-
-## How to run
-
-You need both the backend and frontend running at the same time, in two
-separate terminals:
-
-```bash
-# terminal 1 — backend (http://localhost:3001)
-npm run dev:server
-
-# terminal 2 — frontend (http://localhost:5173, or whatever Vite picks)
-npm run dev
-```
-
-Then open the frontend URL in your browser. Check `GET /api/health` on
-the backend if something looks wrong — it returns
-`{"status":"ok","database":"connected"}` when everything (server + DB)
-is reachable.
-
-## Features and usage
-
-- Record a match by picking two different players, entering both scores
-  (they can't tie), and a date. You do **not** pick the winner — the
-  server figures out who won from the scores. This is on purpose: the
-  frontend is never trusted to say who won.
-- Edit an existing match from Match History. Changing the scores or the
-  players recalculates the winner server-side, same as creating a new
-  match.
-- Delete a match from Match History (there's a confirmation step first).
-  The leaderboard updates automatically since it's calculated fresh every
-  time, not stored.
-- Every player shows up on the leaderboard even if they haven't played
-  any matches yet this season (they just show 0-0, 0%, no streak).
-- The app works down to 375px wide (phone-sized) with no horizontal
-  scrolling.
 
 ## API endpoints
 
 All routes are prefixed with `/api`.
 
-| Method | Route                              | What it does                                                                |
-| ------ | ---------------------------------- | --------------------------------------------------------------------------- |
-| GET    | `/api/health`                      | Checks the server + database connection                                     |
-| GET    | `/api/players`                     | List all players                                                            |
-| GET    | `/api/players/:id`                 | One player                                                                  |
-| GET    | `/api/players/:id/stats?seasonId=` | One player's derived stats (wins, losses, win %, streak, rank) for a season |
-| GET    | `/api/seasons`                     | List all seasons                                                            |
-| GET    | `/api/seasons/active`              | The active season (404 if none)                                             |
-| GET    | `/api/matches?seasonId=`           | List matches for a season, newest first                                     |
-| GET    | `/api/matches/:id`                 | One match                                                                   |
-| POST   | `/api/matches`                     | Create a match (server derives the winner from scores)                      |
-| PATCH  | `/api/matches/:id`                 | Update a match (winner is recalculated)                                     |
-| DELETE | `/api/matches/:id`                 | Delete a match                                                              |
-| GET    | `/api/leaderboard?seasonId=`       | Full season standings, ranked, with streaks                                 |
+| Method | Route                                       | What it does                                                                                |
+| ------ | ------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| GET    | `/api/health`                               | Checks the server + database connection                                                     |
+| GET    | `/api/players`                              | List all players                                                                            |
+| GET    | `/api/players/:id`                          | One player                                                                                  |
+| GET    | `/api/players/:id/stats?seasonId=`          | One player's derived stats (wins, losses, win %, streak, longest streak, rank) for a season |
+| GET    | `/api/players/:id/matches?seasonId=`        | One player's matches, newest first                                                          |
+| GET    | `/api/players/:id/vs/:opponentId?seasonId=` | Head-to-head matches and win totals between two players                                     |
+| POST   | `/api/players`                              | Create a player                                                                             |
+| GET    | `/api/seasons`                              | List all seasons                                                                            |
+| GET    | `/api/seasons/active`                       | The active season (404 if none)                                                             |
+| GET    | `/api/matches?seasonId=`                    | List matches for a season, newest first                                                     |
+| GET    | `/api/matches/:id`                          | One match                                                                                   |
+| POST   | `/api/matches`                              | Create a match (server derives the winner from scores)                                      |
+| PATCH  | `/api/matches/:id`                          | Update a match (winner is recalculated)                                                     |
+| DELETE | `/api/matches/:id`                          | Delete a match                                                                              |
+| GET    | `/api/leaderboard?seasonId=`                | Full season standings, ranked, with streaks                                                 |
 
 A few validation rules worth knowing: scores can't be negative, can't be
-equal, both players have to exist and be different from each other, and
-the request is not allowed to send `winnerId` — the server always
-calculates that itself and rejects the request if you try to send it.
+equal, both players have to exist and be different from each other, and the
+request is not allowed to send `winnerId` — the server always calculates that
+itself and rejects the request if you try to send it. `/api` is also rate
+limited to 100 requests per IP every 15 minutes.
 
 ## Screenshots
 
-More screenshots (mobile views, component states, the delete
-confirmation, error state, etc.) are in `docs/screenshots/`.
-
-**Leaderboard (desktop)**
-
-![Leaderboard](docs/screenshots/leaderboard-desktop.png)
+More screenshots (mobile views, component states, the delete confirmation,
+error state, etc.) are in `docs/screenshots/`.
 
 **Match History (desktop)**
 
@@ -228,32 +173,45 @@ confirmation, error state, etc.) are in `docs/screenshots/`.
 
 ![Leaderboard mobile](docs/screenshots/leaderboard-mobile.png)
 
-## Known issues and next steps
+## Architecture
 
-- CORS on the Express server is wide open (`cors()` with no config).
-  Fine for a local/course project, not something you'd want as-is in
-  production.
-- The rate limiter is in-memory: counts reset on restart, and entries for
-  IPs that stop calling are never removed. Fine for a small league, not for
-  a busy public API.
-- No authentication — this was an intentional non-goal for this project
-  (see `BARKADA_LEAGUE_PROJECT_SPEC.md`), not an oversight.
-- No screen to add/remove/edit players or seasons through the UI — right
-  now that only happens through `seed.sql` or directly in the database.
+The React client (Vercel) talks only to the Express API (Render) over HTTPS —
+it never touches Supabase directly. The API is the sole authority on who won
+a match and on every derived number (wins, losses, win %, rank, streak): none
+of those are stored, they're computed from the raw `matches` table on every
+request, through `server/src/utils/leagueStats.js`, so the leaderboard and a
+player's own profile can never disagree with each other.
 
-See `project/REPORT.md` and `project/SECURITY-CHECKLIST.md` for more
-detail on what's been built and verified.
+## What I would do next
 
-## AI usage
+- Restrict CORS to the deployed frontend's origin instead of `cors()` with no
+  config — fine for a course project, not for anything public long-term.
+- Replace the in-memory rate limiter with something that survives a restart
+  and doesn't grow unbounded, if this ever saw real traffic.
+- Add a UI for managing players and seasons — right now that only happens
+  through `seed.sql` or directly against the database, since it wasn't part
+  of this project's scope.
+
+See `project/REPORT.md` and `project/SECURITY-CHECKLIST.md` for the full,
+checked-against-the-code account of what's built, what's missing, and why.
+
+## Author
+
+Apostol, Lance Jezreel B.
+Computer Science — CS402
+
+## AI use
 
 [![Made with AI](https://img.shields.io/badge/Made_with-AI_assistance-blue)](AI-USAGE.md)
 
-This project was built with heavy use of **Claude Code** (Anthropic) as a
-pair-programming assistant — it wrote most of the implementation code across the
-whole stack (schema, Express routes, React components and styling, debugging, and
-this documentation), working from a spec and constraints I wrote and reviewing
-each phase before moving on.
+This project was built with use of **Claude Code** (Anthropic) as a
+pair-programming assistant — it wrote most of the implementation code across
+the whole stack (schema, Express routes, React components and styling, ane
+debugging), working from a spec and constraints I
+wrote and reviewing each phase before moving on. Later work — several routes,
+two rewritten utility modules, the unit tests, and the longest-win-streak
+feature — was written by me.
 
-See **[AI-USAGE.md](AI-USAGE.md)** for the full account: what I asked for and what
-came back on each piece of work, three cases where the AI got something wrong and
-what I did instead, and which parts of the project are my own.
+See **[AI-USAGE.md](AI-USAGE.md)** for the full account: what I asked for and
+what came back on each piece of work, cases where the AI got something wrong
+and what I did instead, and which parts of the project are my own.
