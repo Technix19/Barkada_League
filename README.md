@@ -206,7 +206,7 @@ Computer Science — CS402
 
 This project was built with use of **Claude Code** (Anthropic) as a
 pair-programming assistant — it wrote most of the implementation code across
-the whole stack (schema, Express routes, React components and styling, ane
+the whole stack (schema, Express routes, React components and styling, and
 debugging), working from a spec and constraints I
 wrote and reviewing each phase before moving on. Later work — several routes,
 two rewritten utility modules, the unit tests, and the longest-win-streak
