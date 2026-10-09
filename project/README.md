@@ -2,7 +2,7 @@
 
 Public repository: https://github.com/Technix19/Barkada_League
 
-Live app (if deployed): https://barkada-league.vercel.app
+Live app: https://barkada-league.vercel.app
 
 ## What it is
 
