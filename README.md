@@ -24,6 +24,20 @@ Built with:
   Postgres host here — the frontend never talks to Supabase directly, and
   there's no Supabase Auth/Storage/SDK involved)
 
+## Live deployment
+
+- **Live site:** https://barkada-league.vercel.app
+- **API:** https://barkada-league-api.onrender.com (try
+  [`/api/health`](https://barkada-league-api.onrender.com/api/health))
+
+The frontend runs on Vercel and the backend on Render, since Render runs the
+Express server as a persistent process rather than a short-lived function —
+that matters here because the rate limiter keeps its counts in memory and the
+`pg` connection pool is built to be reused across requests, both of which
+depend on the process staying alive between calls. The backend is on Render's
+free tier, so it spins down after inactivity; the first request after a quiet
+period can take 50+ seconds while it wakes back up.
+
 ## Overview
 
 There are five screens:
