@@ -23,4 +23,4 @@ Anything in the mockup that is not in the built app by the end needs a sentence
 in your journal explaining what happened. That is a normal part of building
 something, and saying so reads far better than quietly shipping less.
 
-Mockup: https://github.com/Technix19/barkadaleauge/blob/main/assets/Barkada_League_Design_System.pdf
+(Mockup)[https://github.com/Technix19/Barkada_League/blob/main/assets/Barkada_League_Design_System.pdf]
