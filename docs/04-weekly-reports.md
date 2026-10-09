@@ -28,5 +28,5 @@ mounted above cors" is.
 
 
 ## Reports
-Week 1 — https://github.com/Technix19/Barkada_League/blob/main/assets/Week%201%20-%20Project%20Increment%20Report%20(1).pdf
-Week 2 - https://github.com/Technix19/Barkada_League/blob/main/assets/Week%202%20-%20Project%20Incrementation%20Report.pdf
+(Week 1)[https://github.com/Technix19/Barkada_League/blob/main/assets/Week%201%20-%20Project%20Increment%20Report%20(1).pdf]
+(Week 2)[https://github.com/Technix19/Barkada_League/blob/main/assets/Week%202%20-%20Project%20Incrementation%20Report.pdf]
