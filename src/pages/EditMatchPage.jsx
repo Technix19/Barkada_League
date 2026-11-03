@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import MatchForm from '../components/organisms/MatchForm.jsx'
 import * as api from '../services/api.js'
+import { useLeague } from '../auth/useLeague.js'
 
 export default function EditMatchPage() {
   const { id } = useParams()
+  const { leagueId } = useLeague()
   const navigate = useNavigate()
   const [players, setPlayers] = useState([])
   const [seasons, setSeasons] = useState([])
@@ -17,7 +19,7 @@ export default function EditMatchPage() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([api.getPlayers(), api.getSeasons(), api.getMatch(id)])
+    Promise.all([api.getPlayers(leagueId), api.getSeasons(leagueId), api.getMatch(leagueId, id)])
       .then(([playersData, seasonsData, matchData]) => {
         if (cancelled) return
         setPlayers(playersData)
@@ -37,14 +39,14 @@ export default function EditMatchPage() {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, leagueId])
 
   async function handleSubmit(formData) {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      await api.updateMatch(id, formData)
-      navigate('/matches', { state: { updatedMatchId: Number(id) } })
+      await api.updateMatch(leagueId, id, formData)
+      navigate('/leagues/' + leagueId + '/matches', { state: { updatedMatchId: Number(id) } })
     } catch (err) {
       setSubmitError(err.message || 'Could not save changes. Please check the form and try again.')
     } finally {
