@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import MatchForm from '../components/organisms/MatchForm.jsx'
 import * as api from '../services/api.js'
+import { useLeague } from '../auth/useLeague.js'
+import { Link } from 'react-router-dom'
 import { todayLocalDate } from '../utils/formatDate.js'
 
 export default function RecordMatchPage() {
+  const { leagueId } = useLeague()
   const navigate = useNavigate()
   const [players, setPlayers] = useState([])
   const [seasons, setSeasons] = useState([])
@@ -15,7 +18,7 @@ export default function RecordMatchPage() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([api.getPlayers(), api.getSeasons()])
+    Promise.all([api.getPlayers(leagueId), api.getSeasons(leagueId)])
       .then(([playersData, seasonsData]) => {
         if (cancelled) return
         setPlayers(playersData)
@@ -30,14 +33,14 @@ export default function RecordMatchPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [leagueId])
 
   async function handleSubmit(formData) {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      await api.createMatch(formData)
-      navigate('/', {
+      await api.createMatch(leagueId, formData)
+      navigate('/leagues/' + leagueId, {
         state: {
           successMessage: 'Match recorded.',
           updatedPlayerIds: [Number(formData.player1Id), Number(formData.player2Id)],
@@ -70,7 +73,10 @@ export default function RecordMatchPage() {
       {loading && <p className="state-message">Loading form...</p>}
       {!loading && loadError && <p className="state-message state-error">{loadError}</p>}
 
-      {!loading && !loadError && (
+      {!loading && !loadError && (players.length < 2 || seasons.length === 0) && (
+        <p className="state-message">Add at least two <Link to={'/leagues/' + leagueId + '/players'}>players</Link> and a <Link to={'/leagues/' + leagueId + '/seasons'}>season</Link> before recording a match.</p>
+      )}
+      {!loading && !loadError && players.length >= 2 && seasons.length > 0 && (
         <div className="card">
           <MatchForm
             players={players}
