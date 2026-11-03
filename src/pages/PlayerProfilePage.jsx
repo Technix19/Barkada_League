@@ -5,11 +5,13 @@ import Badge from '../components/atoms/Badge.jsx'
 import StatCard from '../components/molecules/StatCard.jsx'
 import MatchCard from '../components/molecules/MatchCard.jsx'
 import * as api from '../services/api.js'
+import { useLeague } from '../auth/useLeague.js'
 import { formatJoinMonth } from '../utils/formatDate.js'
 import { formatPercentage, formatStreak } from '../utils/formatPercentage.js'
 
 export default function PlayerProfilePage() {
   const { id } = useParams()
+  const { leagueId } = useLeague()
   const [player, setPlayer] = useState(null)
   const [seasons, setSeasons] = useState([])
   const [selectedSeasonId, setSelectedSeasonId] = useState('')
@@ -19,7 +21,7 @@ export default function PlayerProfilePage() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([api.getPlayer(id), api.getSeasons()])
+    Promise.all([api.getPlayer(leagueId, id), api.getSeasons(leagueId)])
       .then(([playerData, seasonsData]) => {
         if (cancelled) return
         if (!playerData) {
@@ -38,28 +40,24 @@ export default function PlayerProfilePage() {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, leagueId])
 
   useEffect(() => {
     if (!selectedSeasonId || notFound) return
     let cancelled = false
 
     Promise.all([
-      api.getPlayerStats(id, selectedSeasonId),
-      api.getMatches(selectedSeasonId),
-      api.getLeaderboard(selectedSeasonId),
+      api.getPlayerStats(leagueId, id, selectedSeasonId),
+      api.getPlayerMatches(leagueId, id, selectedSeasonId),
     ])
-      .then(([statsData, matchesData, standings]) => {
+      .then(([statsData, matchesData]) => {
         if (cancelled) return
         setError(null)
-        const rankEntry = standings.find((entry) => String(entry.playerId) === String(id))
         setProfileData({
           seasonId: selectedSeasonId,
           stats: statsData,
-          rank: rankEntry?.rank ?? null,
-          recentMatches: matchesData.filter(
-            (m) => String(m.player1Id) === String(id) || String(m.player2Id) === String(id),
-          ),
+          rank: statsData.rank,
+          recentMatches: matchesData,
         })
       })
       .catch(() => {
@@ -69,10 +67,10 @@ export default function PlayerProfilePage() {
     return () => {
       cancelled = true
     }
-  }, [id, selectedSeasonId, notFound])
+  }, [id, selectedSeasonId, notFound, leagueId])
 
-  const loading =
-    !error && (!profileData || profileData.seasonId !== selectedSeasonId)
+  const loading = Boolean(selectedSeasonId) && !error &&
+    (!profileData || profileData.seasonId !== selectedSeasonId)
   const stats = profileData?.stats ?? null
   const rank = profileData?.rank ?? null
   const recentMatches = profileData?.recentMatches ?? []
@@ -80,7 +78,7 @@ export default function PlayerProfilePage() {
   if (notFound) {
     return (
       <div className="container page">
-        <Link to="/" className="back-link">
+        <Link to={'/leagues/' + leagueId} className="back-link">
           ← Leaderboard
         </Link>
         <p className="state-message state-error">Player not found.</p>
@@ -90,7 +88,7 @@ export default function PlayerProfilePage() {
 
   return (
     <div className="container page">
-      <Link to="/" className="back-link">
+      <Link to={"/leagues/" + leagueId} className="back-link">
         ← Leaderboard
       </Link>
 
@@ -126,6 +124,7 @@ export default function PlayerProfilePage() {
             )}
           </div>
 
+          {!selectedSeasonId && !error && <p className="state-message">No season has been created yet.</p>}
           {loading && <p className="state-message">Loading stats...</p>}
 
           {!loading && stats && (
@@ -146,7 +145,7 @@ export default function PlayerProfilePage() {
                 ) : (
                   <div className="match-list">
                     {recentMatches.map((match) => (
-                      <MatchCard key={match.id} match={match} perspectivePlayerId={id} />
+                      <MatchCard key={match.id} match={match} perspectivePlayerId={id} leagueId={leagueId} />
                     ))}
                   </div>
                 )}

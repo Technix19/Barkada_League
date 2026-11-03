@@ -1,158 +1,111 @@
-// Real frontend data-access layer, talking to the Express API over HTTP.
-// Pages call these functions exactly as they called the equivalents in
-// mockApi.js -- this file exists so page/component code needed no changes
-// beyond swapping the import.
+import { supabase } from '../auth/supabase.js'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '')
 
-// Central fetch helper: sets JSON headers, parses JSON bodies (skipping
-// parsing entirely for a 204 No Content), and turns a non-2xx response
-// into a thrown Error whose .message is the backend's own `error` string
-// where available -- so callers can show it directly instead of only a
-// generic "request failed".
-async function request(path, options = {}) {
-  const hasBody = options.body !== undefined
-  const response = await fetch(`${API_BASE}/api${path}`, {
-    ...options,
-    headers: {
-      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-      ...options.headers,
-    },
-  })
-
-  if (response.status === 204) {
-    return null
+export async function request(path, options = {}) {
+  const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } }
+  const headers = {
+    ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+    ...(data.session?.access_token ? { Authorization: 'Bearer ' + data.session.access_token } : {}),
+    ...options.headers,
   }
 
-  const text = await response.text()
-  const data = text ? JSON.parse(text) : null
+  let response
+  try {
+    response = await fetch(API_BASE + '/api' + path, { ...options, headers })
+  } catch {
+    throw new Error('Cannot connect to the server. Please try again.')
+  }
 
+  if (response.status === 204) return null
+  const body = await response.json().catch(() => null)
   if (!response.ok) {
-    const error = new Error(data?.error || 'Request failed')
+    const error = new Error(body?.error || 'Request failed')
     error.status = response.status
     throw error
   }
-
-  return data
+  return body
 }
 
-// The real API returns nested player1/player2/winner objects. MatchCard
-// reads a flat match.winnerId, and EditMatchPage reads flat
-// match.player1Id/player2Id (mirroring the old mock shape) -- adding
-// those alongside the nested objects keeps every consumer working
-// unchanged instead of pushing this transport detail into components.
-function adaptMatch(match) {
-  return {
-    ...match,
-    player1Id: match.player1.id,
-    player2Id: match.player2.id,
-    winnerId: match.winner.id,
-  }
-}
+const leagueUrl = (leagueId, suffix = '') => '/leagues/' + encodeURIComponent(leagueId) + suffix
+const adaptMatch = (match) => ({
+  ...match, player1Id: match.player1.id, player2Id: match.player2.id, winnerId: match.winner.id,
+})
+const adaptStandings = (entry) => ({
+  rank: entry.rank, playerId: entry.player.id, name: entry.player.name,
+  nickname: entry.player.nickname, matchesPlayed: entry.matchesPlayed,
+  wins: entry.wins, losses: entry.losses, winPercentage: entry.winPercentage,
+  currentStreak: entry.currentStreak, longestWinStreak: entry.longestWinStreak,
+})
+const payload = (values) => ({
+  seasonId: Number(values.seasonId),
+  player1Id: Number(values.player1Id),
+  player2Id: Number(values.player2Id),
+  player1Score: Number(values.player1Score),
+  player2Score: Number(values.player2Score),
+  playedAt: values.playedAt,
+})
 
-// The real API nests { player: { id, name, nickname } } per leaderboard
-// row; LeaderboardRow/LeaderboardTable read flat entry.playerId/name/
-// nickname (the old mock shape). Flattened here so those components don't
-// need to change.
-function adaptLeaderboardEntry(entry) {
-  return {
-    rank: entry.rank,
-    playerId: entry.player.id,
-    name: entry.player.name,
-    nickname: entry.player.nickname,
-    matchesPlayed: entry.matchesPlayed,
-    wins: entry.wins,
-    losses: entry.losses,
-    winPercentage: entry.winPercentage,
-    currentStreak: entry.currentStreak,
-  }
-}
+export const getMyLeagues = () => request('/leagues')
+export const getDemoLeague = () => request('/leagues/demo')
+export const getLeague = (id) => request(leagueUrl(id))
+export const createLeague = (values) => request('/leagues', {
+  method: 'POST', body: JSON.stringify(values),
+})
 
-function toMatchPayload(formData) {
-  return {
-    seasonId: Number(formData.seasonId),
-    player1Id: Number(formData.player1Id),
-    player2Id: Number(formData.player2Id),
-    player1Score: Number(formData.player1Score),
-    player2Score: Number(formData.player2Score),
-    playedAt: formData.playedAt,
-  }
+export const getPlayers = (id) => request(leagueUrl(id, '/players'))
+export const createPlayer = (id, values) => request(leagueUrl(id, '/players'), {
+  method: 'POST', body: JSON.stringify(values),
+})
+export async function getPlayer(id, playerId) {
+  try { return await request(leagueUrl(id, '/players/' + playerId)) }
+  catch (error) { if (error.status === 404) return null; throw error }
 }
+export const getSeasons = (id) => request(leagueUrl(id, '/seasons'))
+export const createSeason = (id, values) => request(leagueUrl(id, '/seasons'), {
+  method: 'POST', body: JSON.stringify(values),
+})
+export const activateSeason = (id, seasonId) => request(leagueUrl(id, '/seasons/' + seasonId + '/activate'), {
+  method: 'PATCH',
+})
 
-// GET /api/players
-export async function getPlayers() {
-  return request('/players')
-}
-
-// GET /api/players/:id
-export async function getPlayer(id) {
-  try {
-    return await request(`/players/${id}`)
-  } catch (err) {
-    if (err.status === 404) return null
-    throw err
-  }
-}
-
-// GET /api/seasons
-export async function getSeasons() {
-  return request('/seasons')
-}
-
-// GET /api/matches?seasonId=
-export async function getMatches(seasonId) {
-  const matches = await request(`/matches?seasonId=${seasonId}`)
+export async function getMatches(id, seasonId, limit = 25, offset = 0) {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  if (seasonId) params.set('seasonId', seasonId)
+  const matches = await request(leagueUrl(id, '/matches?' + params.toString()))
   return matches.map(adaptMatch)
 }
-
-// GET /api/matches/:id
-export async function getMatch(id) {
+export async function getMatch(id, matchId) {
   try {
-    const match = await request(`/matches/${id}`)
-    return adaptMatch(match)
-  } catch (err) {
-    if (err.status === 404) return null
-    throw err
+    return adaptMatch(await request(leagueUrl(id, '/matches/' + matchId)))
+  } catch (error) {
+    if (error.status === 404) return null
+    throw error
   }
 }
-
-// POST /api/matches
-export async function createMatch(formData) {
-  const match = await request('/matches', {
-    method: 'POST',
-    body: JSON.stringify(toMatchPayload(formData)),
-  })
-  return adaptMatch(match)
+export async function createMatch(id, values) {
+  return adaptMatch(await request(leagueUrl(id, '/matches'), {
+    method: 'POST', body: JSON.stringify(payload(values)),
+  }))
 }
-
-// PATCH /api/matches/:id
-export async function updateMatch(id, formData) {
-  const match = await request(`/matches/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(toMatchPayload(formData)),
-  })
-  return adaptMatch(match)
+export async function updateMatch(id, matchId, values) {
+  return adaptMatch(await request(leagueUrl(id, '/matches/' + matchId), {
+    method: 'PATCH', body: JSON.stringify(payload(values)),
+  }))
 }
-
-// DELETE /api/matches/:id
-export async function deleteMatch(id) {
-  await request(`/matches/${id}`, { method: 'DELETE' })
+export const deleteMatch = (id, matchId) => request(leagueUrl(id, '/matches/' + matchId), {
+  method: 'DELETE',
+})
+export async function getLeaderboard(id, seasonId) {
+  const data = await request(leagueUrl(id, '/leaderboard?seasonId=' + encodeURIComponent(seasonId)))
+  return data.map(adaptStandings)
 }
-
-// GET /api/leaderboard?seasonId=
-export async function getLeaderboard(seasonId) {
-  const standings = await request(`/leaderboard?seasonId=${seasonId}`)
-  return standings.map(adaptLeaderboardEntry)
+export const getPlayerStats = (id, playerId, seasonId) =>
+  request(leagueUrl(id, '/players/' + playerId + '/stats?seasonId=' + encodeURIComponent(seasonId)))
+export async function getPlayerMatches(id, playerId, seasonId) {
+  const data = await request(leagueUrl(id, '/players/' + playerId +
+    '/matches?seasonId=' + encodeURIComponent(seasonId)))
+  return data.map(adaptMatch)
 }
-
-// GET /api/players/:id/stats?seasonId=
-export async function getPlayerStats(id, seasonId) {
-  return request(`/players/${id}/stats?seasonId=${seasonId}`)
-}
-
-// Not a real endpoint -- the backend already returns matches newest-first,
-// so "recent matches" is just the first N of GET /api/matches.
-export async function getRecentMatchesForSeason(seasonId, limit = 5) {
-  const matches = await getMatches(seasonId)
-  return matches.slice(0, limit)
-}
+export const getRecentMatchesForSeason = (id, seasonId, limit = 5) =>
+  getMatches(id, seasonId, limit, 0)

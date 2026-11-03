@@ -5,6 +5,7 @@ import { formatDate } from '../../utils/formatDate.js'
 
 export default function MatchCard({
   match,
+  leagueId,
   showActions = false,
   perspectivePlayerId = null,
   highlight = false,
@@ -33,7 +34,7 @@ export default function MatchCard({
             </Badge>
             <span className="match-card-player">
               vs{' '}
-              <Link to={`/players/${opponent.id}`} className="leaderboard-player-link">
+              <Link to={`/leagues/${leagueId}/players/${opponent.id}`} className="leaderboard-player-link">
                 {opponent.name}
               </Link>
             </span>
@@ -56,7 +57,7 @@ export default function MatchCard({
 
         <div className="match-card-matchup">
           <span className={`match-card-player${p1Winner ? ' winner' : ''}`}>
-            <Link to={`/players/${player1.id}`} className="leaderboard-player-link">
+            <Link to={`/leagues/${leagueId}/players/${player1.id}`} className="leaderboard-player-link">
               {player1.name}
             </Link>
           </span>
@@ -64,7 +65,7 @@ export default function MatchCard({
             {player1Score} - {player2Score}
           </span>
           <span className={`match-card-player match-card-player-right${p2Winner ? ' winner' : ''}`}>
-            <Link to={`/players/${player2.id}`} className="leaderboard-player-link">
+            <Link to={`/leagues/${leagueId}/players/${player2.id}`} className="leaderboard-player-link">
               {player2.name}
             </Link>
           </span>
@@ -72,7 +73,7 @@ export default function MatchCard({
 
         {showActions && (
           <div className="match-card-actions">
-            <Link to={`/matches/${match.id}/edit`} className="btn btn-secondary btn-sm">
+            <Link to={`/leagues/${leagueId}/matches/${match.id}/edit`} className="btn btn-secondary btn-sm">
               Edit
             </Link>
             <Button variant="danger" className="btn-sm" onClick={() => onDeleteClick(match.id)}>

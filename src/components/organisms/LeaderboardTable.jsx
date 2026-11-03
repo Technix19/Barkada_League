@@ -4,7 +4,7 @@ import TrophyIcon from '../atoms/TrophyIcon.jsx'
 import LeaderboardRow from '../molecules/LeaderboardRow.jsx'
 import { formatPercentage, formatStreak } from '../../utils/formatPercentage.js'
 
-export default function LeaderboardTable({ standings, highlightPlayerIds = [] }) {
+export default function LeaderboardTable({ standings, leagueId, highlightPlayerIds = [] }) {
   return (
     <>
       <div className="leaderboard-table-wrapper">
@@ -25,6 +25,7 @@ export default function LeaderboardTable({ standings, highlightPlayerIds = [] })
               <LeaderboardRow
                 key={entry.playerId}
                 entry={entry}
+                leagueId={leagueId}
                 highlight={highlightPlayerIds.includes(entry.playerId)}
               />
             ))}
@@ -45,7 +46,7 @@ export default function LeaderboardTable({ standings, highlightPlayerIds = [] })
                 {entry.rank}
               </div>
               <div className="leaderboard-card-body">
-                <Link to={`/players/${entry.playerId}`} className="leaderboard-card-name">
+                <Link to={`/leagues/${leagueId}/players/${entry.playerId}`} className="leaderboard-card-name">
                   {entry.name}
                 </Link>
                 <div className="leaderboard-card-stats">

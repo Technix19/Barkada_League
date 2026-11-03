@@ -1,6 +1,6 @@
 import MatchCard from '../molecules/MatchCard.jsx'
 
-export default function RecentMatches({ matches, emptyMessage = 'No matches have been recorded yet.' }) {
+export default function RecentMatches({ matches, leagueId, emptyMessage = 'No matches have been recorded yet.' }) {
   if (matches.length === 0) {
     return <p className="state-message">{emptyMessage}</p>
   }
@@ -8,7 +8,7 @@ export default function RecentMatches({ matches, emptyMessage = 'No matches have
   return (
     <div className="match-list">
       {matches.map((match) => (
-        <MatchCard key={match.id} match={match} />
+        <MatchCard key={match.id} match={match} leagueId={leagueId} />
       ))}
     </div>
   )

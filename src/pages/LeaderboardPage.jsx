@@ -4,8 +4,10 @@ import Select from '../components/atoms/Select.jsx'
 import LeaderboardTable from '../components/organisms/LeaderboardTable.jsx'
 import RecentMatches from '../components/organisms/RecentMatches.jsx'
 import * as api from '../services/api.js'
+import { useLeague } from '../auth/useLeague.js'
 
 export default function LeaderboardPage() {
+  const { leagueId, canManage, league } = useLeague()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -31,7 +33,7 @@ export default function LeaderboardPage() {
   useEffect(() => {
     let cancelled = false
     api
-      .getSeasons()
+      .getSeasons(leagueId)
       .then((data) => {
         if (cancelled) return
         setSeasons(data)
@@ -44,15 +46,15 @@ export default function LeaderboardPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [leagueId])
 
   useEffect(() => {
     if (!selectedSeasonId) return
     let cancelled = false
 
     Promise.all([
-      api.getLeaderboard(selectedSeasonId),
-      api.getRecentMatchesForSeason(selectedSeasonId, 5),
+      api.getLeaderboard(leagueId, selectedSeasonId),
+      api.getRecentMatchesForSeason(leagueId, selectedSeasonId, 5),
     ])
       .then(([standingsData, matchesData]) => {
         if (cancelled) return
@@ -70,10 +72,10 @@ export default function LeaderboardPage() {
     return () => {
       cancelled = true
     }
-  }, [selectedSeasonId])
+  }, [selectedSeasonId, leagueId])
 
-  const loading =
-    !error && (!leaderboardData || leaderboardData.seasonId !== selectedSeasonId)
+  const loading = Boolean(selectedSeasonId) && !error &&
+    (!leaderboardData || leaderboardData.seasonId !== selectedSeasonId)
   const standings = leaderboardData?.standings ?? []
   const recentMatches = leaderboardData?.recentMatches ?? []
   const hasAnyMatches = standings.some((entry) => entry.matchesPlayed > 0)
@@ -83,7 +85,7 @@ export default function LeaderboardPage() {
       <div className="page-header">
         <div className="page-header-text">
           <h1 className="page-title">Leaderboard</h1>
-          <p className="page-subtitle">Current standings</p>
+          <p className="page-subtitle">{league.name} standings</p>
         </div>
         <div className="page-header-actions">
           {seasons.length > 0 && (
@@ -100,32 +102,35 @@ export default function LeaderboardPage() {
               ))}
             </Select>
           )}
-          <Link to="/matches/new" className="btn btn-primary">
+          {canManage && <Link to={"/leagues/" + leagueId + "/matches/new"} className="btn btn-primary">
             Record Match
-          </Link>
+          </Link>}
         </div>
       </div>
 
       {successMessage && <p className="success-banner">{successMessage}</p>}
 
+      {!selectedSeasonId && !error && <p className="state-message">
+        This league does not have a season yet. {canManage && <Link to={'/leagues/' + leagueId + '/seasons'}>Create your first season</Link>}
+      </p>}
+
       {loading && <p className="state-message">Loading leaderboard...</p>}
 
       {!loading && error && <p className="state-message state-error">{error}</p>}
 
-      {!loading && !error && (
+      {!loading && !error && selectedSeasonId && (
         <>
           {hasAnyMatches ? (
-            <LeaderboardTable standings={standings} highlightPlayerIds={updatedPlayerIds} />
+            <LeaderboardTable standings={standings} leagueId={leagueId} highlightPlayerIds={updatedPlayerIds} />
           ) : (
             <p className="state-message">
-              No matches have been recorded for this season yet. Record the first match to start
-              the leaderboard.
+              No matches have been recorded for this season yet. {canManage && <Link to={'/leagues/' + leagueId + '/matches/new'}>Record the first match</Link>}
             </p>
           )}
 
           <div className="section">
             <h2 className="section-title">Recent Matches</h2>
-            <RecentMatches matches={recentMatches} />
+            <RecentMatches matches={recentMatches} leagueId={leagueId} />
           </div>
         </>
       )}

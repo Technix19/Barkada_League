@@ -68,6 +68,21 @@ router.post("/", requireAuth, async (req, res) => {
   }
 });
 
+// Public demo discovery avoids assuming a hardcoded numeric league ID.
+router.get("/demo", async (_req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, name, slug, is_public AS "isPublic" FROM leagues WHERE slug = $1 AND is_public = TRUE',
+      ["barkada-demo"],
+    );
+    if (!result.rowCount) return res.status(404).json({ error: "Demo league not found" });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Demo lookup failed:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Authorize once, before any league-scoped resource handler.
 router.use("/:leagueId", optionalAuth, loadLeagueAccess);
 
