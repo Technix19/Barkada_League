@@ -1,9 +1,9 @@
-# Multi-league upgrade: Phase 1 (API and database foundation)
+# Multi-league upgrade: Phases 1–2 (database, API and frontend)
 
-> **Do not deploy or merge this branch yet.** Phase 1 intentionally disables the
-> unscoped legacy API. The existing React client still uses those old routes.
-> Phase 2 will add signup/login, league selection, player/season management UIs,
-> and switch every client request to the scoped endpoints.
+> **Do not deploy or merge yet.** The React client now uses the new league API,
+> but the live Supabase project is inactive and the migration has not been run.
+> Apply and test the schema on staging first, then configure Auth and deploy
+> the client and server together. CI passing is not equivalent to E2E testing.
 
 ## What has been implemented
 
@@ -23,7 +23,13 @@
   after introducing multiple user-owned leagues.
 - CORS allowlist, bounded request JSON and periodic expired-IP cleanup in
   the in-memory rate limiter.
-- Basic integration tests and GitHub Actions CI.
+- Basic middleware/API tests and GitHub Actions CI (frontend lint/build and backend tests).
+- React email/password signup and login using the pinned Supabase JavaScript SDK,
+  browser session persistence, and authenticated Bearer token forwarding.
+- My Leagues dashboard, league creation, player roster creation, season creation
+  and activation, and league-scoped navigation.
+- League-specific leaderboard, player profiles, record/edit/delete match flows,
+  server-side paginated match history, and public read-only demo discovery.
 
 ## Before applying to any live database
 
@@ -54,9 +60,12 @@
 5. Confirm the server DB role can query tables and that PostgREST anon and
    authenticated roles cannot. RLS is enabled with no exposed policies; Express
    is the access-control boundary. Validate this with the Supabase advisors.
-6. Only apply to production after the frontend migration in Phase 2 is tested.
-   Migrating the DB while the current frontend is still deployed is not safe
-   because existing app requests use the old unscoped API.
+6. Test the Phase 2 account flow against the **staging** schema: sign up,
+   login, create two leagues, create players/seasons, record and edit matches,
+   verify cross-league authorization, and anonymous access to the public demo.
+7. Deploy the frontend and server with the new environment variables in a
+   coordinated cutover, then apply the verified production migration with a
+   clear rollback window. The existing deployment still uses legacy routes.
 
 ## Express environment (server only)
 
@@ -68,9 +77,20 @@
 - PORT: local development only; Render provides PORT in production.
 
 Do not use an elevated service-role/secret key in the browser. Email/password
-signup uses Supabase Auth, and will be integrated in the React UI in Phase 2.
+signup uses Supabase Auth through the React interface.
 If exposing signup publicly, configure email verification and a suitable
 custom SMTP provider, since Supabase's built-in email service is rate limited.
+
+## React environment (Vercel / local build)
+
+- `VITE_API_URL`: deployed Express API base URL (no `/api` suffix).
+- `VITE_SUPABASE_URL`: Supabase project URL.
+- `VITE_SUPABASE_PUBLISHABLE_KEY`: project publishable key, **never** a secret key.
+
+After configuring Supabase Email/Password Auth, add the deployed frontend URL
+and `/login` redirect to the Auth allowed redirect URLs. If confirmation is
+required, a new user must follow the confirmation email before login. Configure
+custom SMTP for public registration due to Supabase's limited default email sender.
 
 ## New API contract
 
@@ -79,6 +99,7 @@ All paths are under /api, and :leagueId is the numeric league ID.
 | Method | Path | Permission |
 | --- | --- | --- |
 | GET | /leagues | Signed-in user; only member leagues |
+| GET | /leagues/demo | Anyone; locates the existing public demo |
 | POST | /leagues | Signed-in user; becomes owner |
 | GET | /leagues/:leagueId | Member, or visitor if public |
 | GET | /leagues/:leagueId/players | Member, or visitor if public |
@@ -103,15 +124,15 @@ roster entries are separate: an admin can add an unregistered friend.
 
 ## Remaining work before calling this portfolio ready
 
-- Phase 2: Supabase Auth UI + verified session forwarding in src/services/api.js.
-- Phase 2: league picker/create page, user-specific navigation and redirect.
-- Phase 2: create players/seasons from the UI; scoped links and match pages.
 - Phase 3: invitations, profile claiming, robust owner transfer and delete flows.
 - Phase 3: database integration tests with **two** user accounts, ensuring no
   cross-league read/write; public/private permission coverage.
 - Phase 3: review TLS certificate validation in server/src/db.js, improve
   distributed rate limiting, and test email verification/recovery.
-- Phase 3: live demo data and clear loading/empty/error states.
+- Phase 3: verify staging/production migration, resume Supabase project,
+  configure allowed origins and SMTP, and verify full browser E2E flows.
+- Phase 3: player editing/removal, invitations, password recovery,
+  end-to-end authorization coverage and production readiness polish.
 
 ## Rollback strategy
 
