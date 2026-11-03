@@ -1,0 +1,28 @@
+name: Build and test
+
+on:
+  push:
+    branches:
+      - main
+      - feat/multileague-foundation-20261103
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install frontend
+        run: npm ci
+      - name: Lint frontend
+        run: npm run lint
+      - name: Build frontend
+        run: npm run build
+      - name: Install backend
+        run: npm ci --prefix server
+      - name: Test backend
+        run: npm test --prefix server
