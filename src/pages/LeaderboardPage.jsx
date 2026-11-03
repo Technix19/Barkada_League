@@ -7,7 +7,7 @@ import * as api from '../services/api.js'
 import { useLeague } from '../auth/useLeague.js'
 
 export default function LeaderboardPage() {
-  const { leagueId, canManage } = useLeague()
+  const { leagueId, canManage, league } = useLeague()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -85,7 +85,7 @@ export default function LeaderboardPage() {
       <div className="page-header">
         <div className="page-header-text">
           <h1 className="page-title">Leaderboard</h1>
-          <p className="page-subtitle">Current standings</p>
+          <p className="page-subtitle">{league.name} standings</p>
         </div>
         <div className="page-header-actions">
           {seasons.length > 0 && (
