@@ -44,7 +44,7 @@ export default function Header({ league = null, canManage = false }) {
           {menuOpen ? '✕' : '☰'}
         </button>
         <nav aria-label="Main navigation" className={'nav-links' + (menuOpen ? ' open' : '')}>
-          {league && <Link className="nav-link" to="/leagues" onClick={() => setMenuOpen(false)}>
+          {league && <Link className="nav-link" to={user ? '/leagues' : '/demo'} onClick={() => setMenuOpen(false)}>
             {user ? 'My Leagues' : 'Demo'}
           </Link>}
           {links.map((item) => <NavLink key={item.to} to={item.to} end={item.end}
