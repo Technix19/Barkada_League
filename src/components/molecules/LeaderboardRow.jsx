@@ -3,7 +3,7 @@ import Badge from '../atoms/Badge.jsx'
 import TrophyIcon from '../atoms/TrophyIcon.jsx'
 import { formatPercentage, formatStreak } from '../../utils/formatPercentage.js'
 
-export default function LeaderboardRow({ entry, highlight = false }) {
+export default function LeaderboardRow({ entry, leagueId, highlight = false }) {
   const streakVariant = entry.currentStreak?.type === 'W' ? 'win' : entry.currentStreak?.type === 'L' ? 'loss' : 'neutral'
   const rowClass = [entry.rank === 1 ? 'is-rank-1' : '', highlight ? 'updated-row' : '']
     .filter(Boolean)
@@ -18,7 +18,7 @@ export default function LeaderboardRow({ entry, highlight = false }) {
         </span>
       </td>
       <td>
-        <Link to={`/players/${entry.playerId}`} className="leaderboard-player-link">
+        <Link to={`/leagues/${leagueId}/players/${entry.playerId}`} className="leaderboard-player-link">
           {entry.name}
         </Link>{' '}
         {entry.nickname && <span className="leaderboard-nickname">"{entry.nickname}"</span>}
