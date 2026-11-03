@@ -74,8 +74,8 @@ export default function LeaderboardPage() {
     }
   }, [selectedSeasonId, leagueId])
 
-  const loading =
-    !error && (!leaderboardData || leaderboardData.seasonId !== selectedSeasonId)
+  const loading = Boolean(selectedSeasonId) && !error &&
+    (!leaderboardData || leaderboardData.seasonId !== selectedSeasonId)
   const standings = leaderboardData?.standings ?? []
   const recentMatches = leaderboardData?.recentMatches ?? []
   const hasAnyMatches = standings.some((entry) => entry.matchesPlayed > 0)
@@ -110,18 +110,21 @@ export default function LeaderboardPage() {
 
       {successMessage && <p className="success-banner">{successMessage}</p>}
 
+      {!selectedSeasonId && !error && <p className="state-message">
+        This league does not have a season yet. {canManage && <Link to={'/leagues/' + leagueId + '/seasons'}>Create your first season</Link>}
+      </p>}
+
       {loading && <p className="state-message">Loading leaderboard...</p>}
 
       {!loading && error && <p className="state-message state-error">{error}</p>}
 
-      {!loading && !error && (
+      {!loading && !error && selectedSeasonId && (
         <>
           {hasAnyMatches ? (
             <LeaderboardTable standings={standings} leagueId={leagueId} highlightPlayerIds={updatedPlayerIds} />
           ) : (
             <p className="state-message">
-              No matches have been recorded for this season yet. Record the first match to start
-              the leaderboard.
+              No matches have been recorded for this season yet. {canManage && <Link to={'/leagues/' + leagueId + '/matches/new'}>Record the first match</Link>}
             </p>
           )}
 
