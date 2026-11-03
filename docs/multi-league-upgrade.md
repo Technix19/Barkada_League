@@ -31,11 +31,11 @@
    during the review on 2026-11-03).
 2. Take a restorable backup and test that backup on a **separate staging DB**.
 3. Inspect the existing rows and run the migration on staging first:
-   \`database/migrations/20261103_multileague_foundation.sql\`
+   `database/migrations/20261103_multileague_foundation.sql`
    It is a one-time script, not an idempotent upsert or a CLI migration.
 4. Verify counts and associations. Example queries:
 
-   \`\`\`sql
+   ```sql
    SELECT count(*) FROM players;
    SELECT count(*) FROM seasons;
    SELECT count(*) FROM matches;
@@ -47,7 +47,7 @@
      JOIN seasons s ON m.season_id=s.id
      WHERE m.league_id<>p1.league_id OR m.league_id<>p2.league_id
         OR m.league_id<>s.league_id;
-   \`\`\`
+   ```
 
    The last query must return 0. Confirm the demo league owns the pre-existing
    players, seasons and matches. DO NOT re-run seed.sql on a populated database.
