@@ -4,8 +4,10 @@ import Select from '../components/atoms/Select.jsx'
 import LeaderboardTable from '../components/organisms/LeaderboardTable.jsx'
 import RecentMatches from '../components/organisms/RecentMatches.jsx'
 import * as api from '../services/api.js'
+import { useLeague } from '../auth/useLeague.js'
 
 export default function LeaderboardPage() {
+  const { leagueId, canManage } = useLeague()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -31,7 +33,7 @@ export default function LeaderboardPage() {
   useEffect(() => {
     let cancelled = false
     api
-      .getSeasons()
+      .getSeasons(leagueId)
       .then((data) => {
         if (cancelled) return
         setSeasons(data)
@@ -44,15 +46,15 @@ export default function LeaderboardPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [leagueId])
 
   useEffect(() => {
     if (!selectedSeasonId) return
     let cancelled = false
 
     Promise.all([
-      api.getLeaderboard(selectedSeasonId),
-      api.getRecentMatchesForSeason(selectedSeasonId, 5),
+      api.getLeaderboard(leagueId, selectedSeasonId),
+      api.getRecentMatchesForSeason(leagueId, selectedSeasonId, 5),
     ])
       .then(([standingsData, matchesData]) => {
         if (cancelled) return
@@ -70,7 +72,7 @@ export default function LeaderboardPage() {
     return () => {
       cancelled = true
     }
-  }, [selectedSeasonId])
+  }, [selectedSeasonId, leagueId])
 
   const loading =
     !error && (!leaderboardData || leaderboardData.seasonId !== selectedSeasonId)
@@ -100,9 +102,9 @@ export default function LeaderboardPage() {
               ))}
             </Select>
           )}
-          <Link to="/matches/new" className="btn btn-primary">
+          {canManage && <Link to={"/leagues/" + leagueId + "/matches/new"} className="btn btn-primary">
             Record Match
-          </Link>
+          </Link>}
         </div>
       </div>
 
@@ -115,7 +117,7 @@ export default function LeaderboardPage() {
       {!loading && !error && (
         <>
           {hasAnyMatches ? (
-            <LeaderboardTable standings={standings} highlightPlayerIds={updatedPlayerIds} />
+            <LeaderboardTable standings={standings} leagueId={leagueId} highlightPlayerIds={updatedPlayerIds} />
           ) : (
             <p className="state-message">
               No matches have been recorded for this season yet. Record the first match to start
@@ -125,7 +127,7 @@ export default function LeaderboardPage() {
 
           <div className="section">
             <h2 className="section-title">Recent Matches</h2>
-            <RecentMatches matches={recentMatches} />
+            <RecentMatches matches={recentMatches} leagueId={leagueId} />
           </div>
         </>
       )}
