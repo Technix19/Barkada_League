@@ -88,7 +88,7 @@ export default function PlayerProfilePage() {
 
   return (
     <div className="container page">
-      <Link to="/" className="back-link">
+      <Link to={"/leagues/" + leagueId} className="back-link">
         ← Leaderboard
       </Link>
 
