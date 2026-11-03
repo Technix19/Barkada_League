@@ -69,8 +69,8 @@ export default function PlayerProfilePage() {
     }
   }, [id, selectedSeasonId, notFound, leagueId])
 
-  const loading =
-    !error && (!profileData || profileData.seasonId !== selectedSeasonId)
+  const loading = Boolean(selectedSeasonId) && !error &&
+    (!profileData || profileData.seasonId !== selectedSeasonId)
   const stats = profileData?.stats ?? null
   const rank = profileData?.rank ?? null
   const recentMatches = profileData?.recentMatches ?? []
@@ -124,6 +124,7 @@ export default function PlayerProfilePage() {
             )}
           </div>
 
+          {!selectedSeasonId && !error && <p className="state-message">No season has been created yet.</p>}
           {loading && <p className="state-message">Loading stats...</p>}
 
           {!loading && stats && (
