@@ -39,6 +39,7 @@ export default function Header({ league = null, canManage = false }) {
           <img src="/logo.png" alt="" className="brand-logo" width="32" height="32" />
           Barkada League
         </Link>
+        {league && <span className="league-context-name" title={league.name}>{league.name}</span>}
         <button type="button" className="nav-toggle" aria-expanded={menuOpen}
           aria-label="Toggle navigation menu" onClick={() => setMenuOpen((open) => !open)}>
           {menuOpen ? '✕' : '☰'}
