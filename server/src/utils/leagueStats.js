@@ -13,6 +13,8 @@ const PLAYER_SEASON_STATS = `
   LEFT JOIN matches m
     ON (m.player1_id = p.id OR m.player2_id = p.id)
     AND m.season_id = $1
+    AND m.league_id = $2
+  WHERE p.league_id = $2
   GROUP BY p.id, p.name, p.nickname
 `;
 
@@ -24,7 +26,7 @@ const SEASON_MATCH_OUTCOMES = `
     player2_id AS "player2Id",
     winner_id AS "winnerId"
   FROM matches
-  WHERE season_id = $1
+  WHERE season_id = $1 AND league_id = $2
   ORDER BY played_at DESC, id DESC
 `;
 
@@ -122,10 +124,10 @@ export async function seasonExists(seasonId) {
 }
 
 // Gets all player stats for a season.
-export async function getSeasonStandings(seasonId) {
+export async function getSeasonStandings(seasonId, leagueId) {
   const [statsResult, matchesResult] = await Promise.all([
-    pool.query(PLAYER_SEASON_STATS, [seasonId]),
-    pool.query(SEASON_MATCH_OUTCOMES, [seasonId]),
+    pool.query(PLAYER_SEASON_STATS, [seasonId, leagueId]),
+    pool.query(SEASON_MATCH_OUTCOMES, [seasonId, leagueId]),
   ]);
 
   const outcomesByPlayer = buildOutcomesByPlayer(matchesResult.rows);
