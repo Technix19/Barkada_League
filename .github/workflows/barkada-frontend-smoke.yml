@@ -1,0 +1,37 @@
+name: Barkada League frontend and CORS smoke test
+on:
+  push:
+    branches: [chore/release-backup-safety-20261104]
+    paths: [.github/workflows/barkada-frontend-smoke.yml]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Check publicly deployed React pages and API browser CORS
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          origin='https://barkada-league.vercel.app'
+          api='https://barkada-league-api.onrender.com'
+          for page in / /signup /login /demo; do
+            printf 'Checking %s%s... ' "$origin" "$page"
+            curl --fail --silent --show-error --location \
+              --max-time 25 -o "$RUNNER_TEMP/page.html" "$origin$page"
+            grep -Eiq 'id="root"|id=.root.' "$RUNNER_TEMP/page.html" || {
+              echo 'Missing React root element'; exit 1;
+            }
+            echo PASS
+          done
+          echo 'Checking API health + allowed CORS origin...'
+          curl --fail --silent --show-error --max-time 25 \
+            -H "Origin: $origin" \
+            -D "$RUNNER_TEMP/headers" \
+            -o "$RUNNER_TEMP/api.json" \
+            "$api/api/health"
+          grep -Eiq '^access-control-allow-origin: https://barkada-league.vercel.app' \
+            "$RUNNER_TEMP/headers" || { echo 'API does not permit production frontend Origin'; exit 1; }
+          node -e 'const fs=require("fs"); const v=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/api.json", "utf8")); if(v.status!=="ok"||v.database!=="connected") process.exit(1)'
+          echo 'PASS: production frontend routes and browser CORS to healthy API'
