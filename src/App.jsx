@@ -1,5 +1,6 @@
-import { Link, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Link, Outlet, Route, Routes } from 'react-router-dom'
 import Header from './components/organisms/Header.jsx'
+import LandingPage from './pages/LandingPage.jsx'
 import AuthPage from './pages/AuthPage.jsx'
 import DemoRedirectPage from './pages/DemoRedirectPage.jsx'
 import LeagueDashboardPage from './pages/LeagueDashboardPage.jsx'
@@ -12,15 +13,9 @@ import EditMatchPage from './pages/EditMatchPage.jsx'
 import PlayerProfilePage from './pages/PlayerProfilePage.jsx'
 import PlayersPage from './pages/PlayersPage.jsx'
 import SeasonsPage from './pages/SeasonsPage.jsx'
-import { useAuth } from './auth/useAuth.js'
 
 function GeneralLayout() {
   return <><Header /><main className="app-main"><Outlet /></main></>
-}
-function Home() {
-  const { user, ready } = useAuth()
-  if (!ready) return <div className="container page"><p className="state-message">Loading...</p></div>
-  return <Navigate to={user ? '/leagues' : '/demo'} replace />
 }
 function NotFound() {
   return <div className="container page">
@@ -31,8 +26,8 @@ function NotFound() {
 
 export default function App() {
   return <Routes>
+    <Route path="/" element={<LandingPage />} />
     <Route element={<GeneralLayout />}>
-      <Route index element={<Home />} />
       <Route path="/login" element={<AuthPage mode="login" />} />
       <Route path="/signup" element={<AuthPage mode="signup" />} />
       <Route path="/demo" element={<DemoRedirectPage />} />
