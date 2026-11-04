@@ -99,7 +99,7 @@ jobs:
             -e PGPASSWORD=postgres \
             -v "$RUNNER_TEMP/barkada-backup:/backup:ro" postgres:17 \
             sh -euc '
-              pg_restore --exit-on-error --no-owner --no-acl \
+              pg_restore --exit-on-error --clean --if-exists --no-owner --no-acl \
                 --host=127.0.0.1 --port=5432 --username=postgres \
                 --dbname=barkada_restore /backup/barkada-public.dump
               actual=$(psql --host=127.0.0.1 --port=5432 --username=postgres \
