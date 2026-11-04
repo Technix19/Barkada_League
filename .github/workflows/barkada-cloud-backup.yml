@@ -1,4 +1,5 @@
 # Cloud-only, branch-restricted backup. No local Docker required.
+# Authorized manual activation after configuring repository Actions secrets (2026-11-04).
 # To rerun safely after configuring GitHub Secrets, edit THIS FILE on the
 # chore/release-backup-safety-20261104 branch and commit it to that branch.
 name: Barkada League encrypted backup (cloud)
