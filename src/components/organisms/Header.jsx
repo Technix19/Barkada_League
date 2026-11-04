@@ -34,7 +34,7 @@ export default function Header({ league = null, canManage = false }) {
 
   return (
     <header className="header">
-      <div className="container header-inner">
+      <div className={'container header-inner' + (league ? ' header-inner--league' : '')}>
         <Link to={user ? '/leagues' : '/demo'} className="brand" onClick={() => setMenuOpen(false)}>
           <img src="/logo.png" alt="" className="brand-logo" width="32" height="32" />
           Barkada League

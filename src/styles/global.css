@@ -209,6 +209,8 @@ img {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-4);
+  max-width: 1560px;
   padding-block: var(--space-3);
 }
 
@@ -221,6 +223,8 @@ img {
   letter-spacing: -0.02em;
   text-decoration: none;
   color: var(--color-text);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .brand-icon {
@@ -238,6 +242,7 @@ img {
 .nav-links {
   display: flex;
   gap: var(--space-2);
+  flex-shrink: 0;
 }
 
 .nav-link {
@@ -249,6 +254,8 @@ img {
   font-weight: 600;
   color: var(--color-muted);
   border: 1px solid transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
@@ -1015,7 +1022,9 @@ a.league-tile:hover { border-color: var(--color-primary); background: var(--colo
 }
 
 .league-context-name {
-  max-width: 170px;
+  flex: 0 1 220px;
+  min-width: 0;
+  max-width: 220px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -1032,4 +1041,33 @@ a.league-tile:hover { border-color: var(--color-primary); background: var(--colo
 }
 @media (max-width: 540px) {
   .league-context-name { display: none; }
+}
+
+/* At laptop widths, a full league toolbar is wider than the page content.
+   Collapse only the longer league navigation until it has enough room to
+   remain a single line. General navigation stays visible above 1100px. */
+@media (min-width: 1101px) and (max-width: 1400px) {
+  .header-inner--league {
+    flex-wrap: wrap;
+  }
+
+  .header-inner--league .nav-toggle {
+    display: inline-flex;
+    margin-left: auto;
+  }
+
+  .header-inner--league .nav-links {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    padding-bottom: var(--space-3);
+  }
+
+  .header-inner--league .nav-links.open {
+    display: flex;
+  }
+
+  .header-inner--league .nav-link {
+    width: 100%;
+  }
 }
