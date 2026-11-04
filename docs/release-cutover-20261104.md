@@ -13,7 +13,7 @@ Keep PR #2 as a draft until the API, schema, and client work together.
 - The one-time migration `database/migrations/20261103_multileague_foundation.sql` passed a transaction-only test against the real existing schema; all 22 records retained their original IDs; rollback left no schema changes.
 - An application-table snapshot ZIP exists as a conversation attachment dated November 4, 2026 with `restore.sql`, CSVs, and original sequence states. **It is not a complete Supabase backup**; do not check it into a public GitHub repository.
 - Vercel production uses old React frontend, commit `12b7e331a02b7269432e5eac2d771db3e22d2628`.
-- Phase 2 Vercel preview has branch-scoped `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, plus an existing shared `VITE_API_URL`. Production Supabase frontend environment variables are not yet configured.
+- Phase 2 Vercel preview has branch-scoped `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, plus an existing shared `VITE_API_URL`. **The production Supabase frontend variables were also configured on November 4.** No production deployment was triggered; the latest production deployment still runs the Phase 1 frontend.
 - A standard Vercel SPA rewrite is in `vercel.json` to support deep links.
 - Render's backend service configuration and version are not yet verified from an authorized integration.
 
@@ -21,7 +21,7 @@ Keep PR #2 as a draft until the API, schema, and client work together.
 
 - [ ] Capture a complete logical backup of the live Supabase database before production migration, using Supabase CLI with a secure project connection.
 - [ ] Store the backup off the repository, and test a restore to a **separate empty environment**.
-- [ ] Confirm restored row counts and sequence states match the pre-migration manifest.
+- [ ] Confirm restored row counts and sequence states match the pre-migration manifest. The November 4 ZIP passed CRC, SHA-256, and individual CSV row-count verification; **a full-database backup and independent test restore are still missing**.
 - [ ] Review the entire migration, and keep the old production backup available for rollback.
 
 Supabase recommends exporting free-project data yourself. Suggested CLI workflow, after `supabase db dump --help`:
@@ -37,12 +37,12 @@ Never commit backups, database passwords, or access tokens.
 
 ## 2. Configure integrations
 
-- [ ] Inspect/authorize **Render** service for `barkada-league-api`; verify its deployed code and build command.
+- [ ] Confirm Render workspace: the connected account lists only `My Workspace` (ID `tea-d9vuo1rl550s73c5tdfg`), but Render explicitly requires the user to choose the workspace before tools can read or change services. Once confirmed, inspect `barkada-league-api` service, deployed code and build command.
 - [ ] Set server `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` to **this project's** values, not the EasyBooks or SourceMind project.
 - [ ] Confirm server `DATABASE_URL` points to Barkada League and uses a role authorized to reach protected tables.
 - [ ] Set `FRONTEND_ORIGIN` to the exact production Vercel origin and any preview origins to be tested.
 - [ ] Configure Supabase Auth Email/Password, allowed redirect URL (`/login`), and appropriate SMTP / rate limits.
-- [ ] Configure Vercel **production** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (preview branch variables are already set).
+- [x] Configure Vercel **production** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. These environment variables will take effect only on a future deployment; do not merge or deploy until Render and migration steps are ready.
 - [ ] Ensure `VITE_API_URL` is the correct Render URL without an `/api` suffix.
 
 ## 3. Staging end-to-end checks
