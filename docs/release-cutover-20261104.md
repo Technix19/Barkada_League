@@ -17,6 +17,17 @@ Keep PR #2 as a draft until the API, schema, and client work together.
 - A standard Vercel SPA rewrite is in `vercel.json` to support deep links.
 - Render's backend service configuration and version are not yet verified from an authorized integration.
 
+## November 4 verified follow-up
+
+- Render access was confirmed for workspace `My Workspace` (service `barkada-league-api`, ID `srv-db4emgrbc2fs73bi6g4g`).
+- **Render production still runs old commit `2f063b3ce77abfe1df6e88048955272beb6f4a78` dated October 4, despite `autoDeploy=yes` and branch `main`.** Its current build/start commands are `cd server && npm install` and `cd server && npm start`; no PR preview services configured.
+- A November 3 Render log reports a Supabase pooler host/tenant error while the Supabase project was inactive. Supabase is now active, but current live backend functionality has not been proved.
+- **Server environment variables have NOT been changed.** Updating the server's authentication/CORS settings through the connected integration was blocked. An authorized operator should enter `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` on Render from the Barkada League Supabase project's URL and *browser-safe publishable key*, and verify `FRONTEND_ORIGIN` and `DATABASE_URL`. Do not copy an API key into this document.
+- Vercel production Supabase browser-safe variables are configured, with no production redeploy; preview branch remains `READY`.
+- Added `database/tests/verify_multileague.sql` and a **PostgreSQL 17 CI integration job**. The test recreates the legacy schema and seed, applies the exact migration, and tests retention of 22 legacy records, active-season uniqueness, RLS/permissions, and cross-league foreign-key protections. **Both CI jobs passed** on commit `2282628` (GitHub Actions run `41779321264`).
+- CI uses 15 Git-seeded sample matches, *not* the actual live match rows; the live database migration previously passed a rollback-only transaction test as a separate check.
+- A complete independent database backup and test restore are **still required** before applying the migration to production.
+
 ## 1. Complete backup and test restore (required)
 
 - [ ] Capture a complete logical backup of the live Supabase database before production migration, using Supabase CLI with a secure project connection.
