@@ -1,8 +1,10 @@
 # Barkada League: Docker-free backup using GitHub Actions
 
-**Status:** Backup workflow prepared, not yet executed against Supabase. Production multi-league migration remains **unapplied**.
+**Status as of November 4, 2026:** Encrypted application database backup and isolated PostgreSQL restore **PASSED** in [GitHub Actions run #41800099546](https://github.com/Technix19/Barkada_League/actions/runs/41800099546). Artifact `barkada-encrypted-pre-migration-backup` is available until **November 18, 2026**. The user should download and retain an offsite copy with their passphrase. Production multi-league migration remains **unapplied**.
 
 This workflow requires **no Docker installation on your laptop**. GitHub-hosted Linux runners supply Docker and PostgreSQL 17 in the cloud. The backup and a test restoration run there. The workflow exists only on the draft `chore/release-backup-safety-20261104` branch and does not affect Vercel production.
+
+At the time of backup validation, the project had **6 players, 1 season, 15 matches, zero Auth users, zero Storage buckets, and zero Storage objects**. The separate test restore verified table record counts, sequence values, and integrity. The backup is limited to the `public` schema; dashboard configuration, auth/storage settings, and platform internals are outside scope.
 
 ## One-time user setup in GitHub
 
