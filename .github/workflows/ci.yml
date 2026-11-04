@@ -16,6 +16,8 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - name: Check release backup script syntax
+        run: bash -n scripts/backup-supabase.sh
       - name: Install frontend
         run: npm ci
       - name: Lint frontend
