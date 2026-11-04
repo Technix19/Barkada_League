@@ -1,0 +1,79 @@
+name: Landing page browser smoke test
+
+on:
+  push:
+    branches:
+      - feat/landing-page-20261104
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install app and temporary Playwright tooling
+        run: |
+          npm ci
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Start Vite preview and check desktop/mobile flows
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 > "$RUNNER_TEMP/vite.log" 2>&1 &
+          for n in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:5173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict'
+          import { chromium } from 'playwright'
+          const browser = await chromium.launch({ headless: true })
+          try {
+            for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+              const page = await browser.newPage({ viewport, reducedMotion: 'reduce' })
+              await page.goto('http://127.0.0.1:5173/', { waitUntil: 'networkidle' })
+              assert.match(await page.title(), /Barkada League/)
+              assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1)
+              assert.equal(await page.locator('#features').count(), 1)
+              assert.equal(await page.locator('#how-it-works').count(), 1)
+              assert.equal(await page.locator('#faq').count(), 1)
+              const wide = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
+              assert.equal(wide, false, 'Unexpected horizontal page overflow at ' + viewport.width + 'px')
+              const cta = page.getByRole('link', { name: /start your league/i })
+              assert.equal(await cta.getAttribute('href'), '/signup')
+              if (viewport.width < 800) {
+                await page.getByRole('button', { name: 'Open menu' }).click()
+                await page.getByRole('navigation', { name: 'Landing page navigation' })
+                  .getByRole('link', { name: 'Features' }).click()
+                assert.equal(new URL(page.url()).hash, '#features')
+              }
+              const firstFaq = page.locator('details').first()
+              await firstFaq.locator('summary').click()
+              assert.equal(await firstFaq.getAttribute('open'), '')
+              await page.screenshot({ path: process.env.RUNNER_TEMP + '/landing-' + viewport.width + '.png', fullPage: true })
+              await cta.click()
+              await page.waitForURL('**/signup')
+              assert.equal(await page.getByRole('heading', { name: 'Create an account' }).count(), 1)
+              console.log('PASS: ' + viewport.width + 'px landing page, navigation, FAQ, signup')
+              await page.close()
+            }
+          } finally {
+            await browser.close()
+          }
+          JS
+      - name: Upload visual QA screenshots
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: barkada-landing-visual-qa
+          path: ${{ runner.temp }}/landing-*.png
+          retention-days: 7
