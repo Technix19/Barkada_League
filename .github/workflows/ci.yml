@@ -26,3 +26,43 @@ jobs:
         run: npm ci --prefix server
       - name: Test backend
         run: npm test --prefix server
+
+  migration-integration:
+    name: PostgreSQL 17 migration and league isolation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: barkada_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d barkada_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/barkada_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm PostgreSQL client is available
+        run: psql --version
+      - name: Set up Supabase-compatible auth schema and API roles
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE SCHEMA auth;
+          CREATE TABLE auth.users (id uuid PRIMARY KEY);
+          CREATE ROLE anon NOLOGIN;
+          CREATE ROLE authenticated NOLOGIN;
+          SQL
+      - name: Recreate legacy schema and seed data
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/schema.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/seed.sql
+      - name: Apply the exact foundation migration from Git
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/migrations/20261103_multileague_foundation.sql
+      - name: Verify preservation, permissions, and data isolation
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/tests/verify_multileague.sql
