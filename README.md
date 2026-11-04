@@ -1,5 +1,12 @@
 # Barkada League
 
+> **Multi-league upgrade in progress (draft PR #1):** This branch now adds
+> email/password login, league creation, roster and season management, and
+> league-scoped APIs. The publicly deployed site still runs the older
+> one-league implementation. Do **not** deploy the new code until the database
+> migration is tested on staging and the new Supabase/Vercel/Render environment
+> variables are configured. See [the migration and rollout guide](docs/multi-league-upgrade.md).
+
 A season leaderboard for a small group of friends who play the same 1v1 game
 and want their standings, win percentage, and streaks worked out automatically
 from recorded matches instead of by hand.
