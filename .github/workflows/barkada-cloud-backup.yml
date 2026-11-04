@@ -1,0 +1,167 @@
+# Cloud-only, branch-restricted backup. No local Docker required.
+# To rerun safely after configuring GitHub Secrets, edit THIS FILE on the
+# chore/release-backup-safety-20261104 branch and commit it to that branch.
+name: Barkada League encrypted backup (cloud)
+
+on:
+  push:
+    branches:
+      - chore/release-backup-safety-20261104
+    paths:
+      - .github/workflows/barkada-cloud-backup.yml
+
+permissions:
+  contents: read
+
+jobs:
+  backup-and-restore-test:
+    if: github.repository == 'Technix19/Barkada_League' && github.ref == 'refs/heads/chore/release-backup-safety-20261104'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: barkada_restore
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d barkada_restore"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Require the two GitHub repository secrets
+        id: gate
+        shell: bash
+        env:
+          BARKADA_DB_URL: ${{ secrets.BARKADA_DB_URL }}
+          BARKADA_BACKUP_PASSPHRASE: ${{ secrets.BARKADA_BACKUP_PASSPHRASE }}
+        run: |
+          if [[ -z "$BARKADA_DB_URL" || -z "$BARKADA_BACKUP_PASSPHRASE" ]]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Set BARKADA_DB_URL and BARKADA_BACKUP_PASSPHRASE in repository Actions secrets, then edit and recommit this workflow on the backup branch."
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Back up application schema and verify isolated restore
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        env:
+          BARKADA_DB_URL: ${{ secrets.BARKADA_DB_URL }}
+          BARKADA_BACKUP_PASSPHRASE: ${{ secrets.BARKADA_BACKUP_PASSPHRASE }}
+        run: |
+          set -Eeuo pipefail
+          set +x
+          umask 077
+          mkdir -p "$RUNNER_TEMP/barkada-backup"
+          chmod 700 "$RUNNER_TEMP/barkada-backup"
+
+          # Accept a direct connection OR a Supabase session-pooler URL.
+          # Both must explicitly identify the Barkada League project, never
+          # another Supabase project.
+          if [[ "$BARKADA_DB_URL" != *"fwazvwgyzxpjmycuazcp"* ]]; then
+            echo "::error::BARKADA_DB_URL does not identify the Barkada League project."
+            exit 1
+          fi
+          if [[ "$BARKADA_DB_URL" != postgresql://* && "$BARKADA_DB_URL" != postgres://* ]]; then
+            echo "::error::BARKADA_DB_URL must be a PostgreSQL URL."
+            exit 1
+          fi
+
+          # Docker runs on the GitHub-hosted Linux VM, not on the user's Mac.
+          # URL is passed as an environment variable and never echoed.
+          docker run --rm --network host \
+            -e BARKADA_DB_URL -e PGSSLMODE=require \
+            -v "$RUNNER_TEMP/barkada-backup:/backup" postgres:17 \
+            sh -euc '
+              auth_count=$(psql "$BARKADA_DB_URL" -X -A -t -v ON_ERROR_STOP=1 \
+                -c "SELECT count(*) FROM auth.users;")
+              if [ "$auth_count" != 0 ]; then
+                echo "Refusing a public-schema-only backup: existing Supabase Auth users need a separate Auth export." >&2
+                exit 1
+              fi
+              pg_dump "$BARKADA_DB_URL" \
+                --schema=public --format=custom --no-owner --no-acl \
+                --file=/backup/barkada-public.dump
+              test -s /backup/barkada-public.dump
+              pg_restore --list /backup/barkada-public.dump >/backup/dump-contents.txt
+            '
+
+          # Restore into a separate, empty PostgreSQL service inside GitHub
+          # Actions. This database is unrelated to live Supabase.
+          docker run --rm --network host \
+            -e PGPASSWORD=postgres \
+            -v "$RUNNER_TEMP/barkada-backup:/backup:ro" postgres:17 \
+            sh -euc '
+              pg_restore --exit-on-error --no-owner --no-acl \
+                --host=127.0.0.1 --port=5432 --username=postgres \
+                --dbname=barkada_restore /backup/barkada-public.dump
+              actual=$(psql --host=127.0.0.1 --port=5432 --username=postgres \
+                --dbname=barkada_restore -X -A -t -v ON_ERROR_STOP=1 -c "
+                  SELECT
+                    (SELECT count(*) FROM public.players)::text || '\''|'\'' ||
+                    (SELECT count(*) FROM public.seasons)::text || '\''|'\'' ||
+                    (SELECT count(*) FROM public.matches)::text || '\''|'\'' ||
+                    (SELECT last_value FROM public.players_id_seq)::text || '\''|'\'' ||
+                    (SELECT last_value FROM public.seasons_id_seq)::text || '\''|'\'' ||
+                    (SELECT last_value FROM public.matches_id_seq)::text
+                ")
+              if [ "$actual" != "6|1|15|9|1|39" ]; then
+                echo "Restored database row-count/sequence validation failed: $actual" >&2
+                exit 1
+              fi
+              invalid=$(psql --host=127.0.0.1 --port=5432 --username=postgres \
+                --dbname=barkada_restore -X -A -t -v ON_ERROR_STOP=1 -c "
+                  SELECT count(*) FROM public.matches m
+                  LEFT JOIN public.players p1 ON p1.id=m.player1_id
+                  LEFT JOIN public.players p2 ON p2.id=m.player2_id
+                  LEFT JOIN public.players w ON w.id=m.winner_id
+                  LEFT JOIN public.seasons s ON s.id=m.season_id
+                  WHERE p1.id IS NULL OR p2.id IS NULL OR w.id IS NULL OR s.id IS NULL
+                    OR (m.player1_score > m.player2_score AND m.winner_id<>m.player1_id)
+                    OR (m.player2_score > m.player1_score AND m.winner_id<>m.player2_id)
+                ")
+              if [ "$invalid" != "0" ]; then
+                echo "Restore failed match consistency validation." >&2
+                exit 1
+              fi
+              echo "PASS: restore and integrity checks"
+            '
+
+          cd "$RUNNER_TEMP/barkada-backup"
+          sha256sum barkada-public.dump > SHA256SUMS.txt
+          {
+            echo "Barkada League: public schema application backup"
+            echo "Project: fwazvwgyzxpjmycuazcp"
+            echo "Created (UTC): $(date -u +%FT%TZ)"
+            echo "Restored successfully to a disposable GitHub Actions PostgreSQL 17 service."
+            echo "Expected table counts: players=6, seasons=1, matches=15"
+            echo "No Auth users at backup time, verified prior to export."
+            echo "NOT a full Supabase platform backup: no Storage objects or Auth/settings configuration."
+          } > MANIFEST.txt
+
+          tar -czf "$RUNNER_TEMP/barkada-application-backup.tar.gz" \
+            barkada-public.dump SHA256SUMS.txt MANIFEST.txt
+          # Symmetric encryption before upload; plaintext is never an artifact.
+          printf '%s' "$BARKADA_BACKUP_PASSPHRASE" > "$RUNNER_TEMP/backup-passphrase"
+          gpg --batch --yes --pinentry-mode loopback \
+            --passphrase-file "$RUNNER_TEMP/backup-passphrase" \
+            --symmetric --cipher-algo AES256 \
+            --output "$RUNNER_TEMP/barkada-application-backup.tar.gz.gpg" \
+            "$RUNNER_TEMP/barkada-application-backup.tar.gz"
+          rm -f "$RUNNER_TEMP/backup-passphrase"
+          echo "Restore test passed; only the encrypted archive will be uploaded."
+
+      - name: Upload encrypted backup only
+        if: steps.gate.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: barkada-encrypted-pre-migration-backup
+          path: ${{ runner.temp }}/barkada-application-backup.tar.gz.gpg
+          if-no-files-found: error
+          retention-days: 14
