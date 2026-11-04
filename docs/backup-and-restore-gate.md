@@ -1,37 +1,55 @@
-# Barkada League: backup and restore release gate
+# Barkada League: Docker-free backup using GitHub Actions
 
-The one-time Phase 1 database migration has passed a PostgreSQL 17 CI test and a rollback-only test on the live schema, but **has not been permanently applied**.
+**Status:** Backup workflow prepared, not yet executed against Supabase. Production multi-league migration remains **unapplied**.
 
-The earlier ZIP contains an application-record snapshot (6 players, 1 season, 15 matches). It is not a complete database backup. A verified independent logical backup and test restoration are required before the production migration.
+This workflow requires **no Docker installation on your laptop**. GitHub-hosted Linux runners supply Docker and PostgreSQL 17 in the cloud. The backup and a test restoration run there. The workflow exists only on the draft `chore/release-backup-safety-20261104` branch and does not affect Vercel production.
 
-## Create a logical backup
+## One-time user setup in GitHub
 
-1. On a Mac with Node.js and [Docker Desktop](https://docs.docker.com/get-started/get-docker/) installed and running, open Terminal in the Barkada League repository.
-2. Check out the backup helper branch, or copy `scripts/backup-supabase.sh` into the repo.
-3. Run `bash scripts/backup-supabase.sh`. Authenticate with the Supabase account that has access to Portfolio 2.
-4. The script **explicitly** links to Barkada League project `fwazvwgyzxpjmycuazcp`. Enter the project's database password only into the Supabase CLI prompts; never paste it into a chat or GitHub.
-5. Find the timestamped files under `~/BarkadaLeagueBackups/`. They are deliberately outside the repository, with restrictive file permissions. Preserve an encrypted offsite copy.
+Go to [Barkada_League repository Settings → Secrets and variables → Actions](https://github.com/Technix19/Barkada_League/settings/secrets/actions). Create **two repository secrets**:
 
-The helper invokes Supabase's documented roles/schema/data dump commands. It does not change any production data. It does **not** download Supabase Storage binary files, dashboard configuration, Auth email settings, or API secrets. Keep the backup private because it may contain sensitive account information.
+| Secret | Value |
+|---|---|
+| `BARKADA_DB_URL` | Full **Session pooler** database connection URI from **Barkada League's** [Supabase Connect panel](https://supabase.com/dashboard/project/fwazvwgyzxpjmycuazcp), including the database password. The URI must identify project `fwazvwgyzxpjmycuazcp`. Use the project owner account in Portfolio 2. |
+| `BARKADA_BACKUP_PASSPHRASE` | A unique, long random passphrase from your password manager. This encrypts the backup file before it leaves the GitHub runner. Store it safely; without it you cannot decrypt the backup. |
 
-Source documentation: [CLI database backup and restore](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore), [Supabase free-project backup policy](https://supabase.com/docs/guides/platform/backups).
+Do **not** paste these secrets into ChatGPT or commit them into files. Never put database credentials in the public repo or a pull request.
 
-## Restore test: release gate
+Once both secrets exist, **ask ChatGPT to trigger the backup**, or edit a comment in `.github/workflows/barkada-cloud-backup.yml` on the **backup branch** and commit the edit directly to that branch. Its branch-only `push` trigger starts the workflow. Do not merge the draft PR to trigger it.
 
-Restore the roles, schema, and data to **a separate disposable instance**, never over Barkada League's production database. Follow [Supabase's official restore instructions](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore). Account for Supabase-managed schemas, extensions, and PostgreSQL version differences.
+Track the run under [GitHub Actions](https://github.com/Technix19/Barkada_League/actions). After it passes, download the artifact named `barkada-encrypted-pre-migration-backup` (available for 14 days) and preserve an offsite copy.
 
-Verify restored application tables have **6 players, 1 season, and 15 matches**, with all original IDs, scores, dates, winner references, and sequence next-values. At the previous capture, the sequence last-values were 9, 1, 39, respectively. Supabase Auth had zero users at that time. Do not proceed if your current database differs from those expectations without understanding the changes.
+## What the workflow does
 
-To preserve access to the original records, do not merge or deploy the new API/frontend independently. The temporary Vercel production deployment uses old frontend commit `5e44bda` to match the still-running Render legacy API.
+- Rejects a database URL that does not identify the **Barkada League** Supabase project.
+- Uses a GitHub-hosted runner's Docker runtime and PostgreSQL 17 to make a **read-only** logical dump of the complete `public` schema, including its table definitions, constraints, sequences, and application data.
+- Checks that `auth.users` is **empty**. If there are Auth users, it stops rather than falsely claiming to capture all user identity data; an Auth-aware backup is then required.
+- Restores the application dump into a completely separate, disposable PostgreSQL 17 service on the same runner.
+- Verifies **6 players, 1 season, 15 matches**, known sequence values, and referential and winner integrity after restoration. If data has changed since the last snapshot, the job fails safely; review differences before proceeding.
+- Creates a checksum and manifest, encrypts the archive with GPG AES-256 using the passphrase secret, and uploads **only the encrypted archive**. The unencrypted database files remain inside the ephemeral runner and are not uploaded.
 
-## Coordinated cutover once verified
+**Scope:** This is a restorable **application database backup**, not a full Supabase platform snapshot. It does not include Storage object files, Auth provider configuration, API secrets, SMTP settings, and other platform-managed resources. At the last check, there were zero Auth users. For general Supabase logical backup guidance see [Supabase Database Backups](https://supabase.com/docs/guides/platform/backups).
 
-1. Confirm a full backup and a successful test restoration.
-2. Fix Render deployment drift and securely configure the Barkada League PostgreSQL connection, Supabase Auth variables and frontend-origin allowlist. Do not put secrets into GitHub or chat.
-3. Arrange maintenance / stop writes. Recheck record counts and repeat backup if records changed.
-4. Apply `database/migrations/20261103_multileague_foundation.sql` once.
-5. Deploy the updated Render backend and Phase 2 Vercel frontend together.
-6. Run `BARKADA_API_URL=https://barkada-league-api.onrender.com node server/scripts/smoke.mjs` and browser tests for login, ownership, demo read-only access, and cross-league isolation.
-7. Re-run Supabase security advisors and confirm RLS is enabled with direct Data API access restricted.
+## Decrypt later
 
-**Known critical risk:** RLS is presently disabled on public.players, public.seasons, public.matches. The old backend is also a legacy, unauthenticated API. Avoid treating it as safe for public writes until the release is completed.
+After downloading the artifact and unzipping the GitHub artifact container, decrypt the contained `.gpg` file on a trusted machine with GPG:
+
+```bash
+gpg --decrypt --output barkada-application-backup.tar.gz \
+  barkada-application-backup.tar.gz.gpg
+tar -tzf barkada-application-backup.tar.gz
+```
+
+The GPG prompt will ask for `BARKADA_BACKUP_PASSPHRASE`; never expose the plaintext archive publicly.
+
+## Production cutover after verification
+
+1. Ensure the encrypted backup artifact exists, its restore check passed, and a secured offsite copy is retained.
+2. Confirm Render's backend environment and `DATABASE_URL` point at this project; configure `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `FRONTEND_ORIGIN` via Render's secure dashboard. No secrets belong in source code.
+3. Arrange a maintenance window, pause writes, and retake a backup if production records change.
+4. Apply `database/migrations/20261103_multileague_foundation.sql` exactly once to Barkada League's database.
+5. Deploy the modern backend and Vercel Phase 2 frontend as a coordinated release.
+6. Run `BARKADA_API_URL=https://barkada-league-api.onrender.com node server/scripts/smoke.mjs` and the complete signup/private-league isolation checks.
+7. Run Supabase security advisors; confirm the migration enabled RLS on all six public tables and blocked direct Data API access.
+
+**Current critical risk:** Existing `public.players`, `public.seasons`, and `public.matches` have RLS disabled. The pre-upgrade backend is also a legacy unauthenticated API. Neither should be considered secure for untrusted public writes.
