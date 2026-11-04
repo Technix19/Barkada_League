@@ -101,22 +101,23 @@ jobs:
               pg_restore --exit-on-error --no-owner --no-acl \
                 --host=127.0.0.1 --port=5432 --username=postgres \
                 --dbname=barkada_restore /backup/barkada-public.dump
-              psql --host=127.0.0.1 --port=5432 --username=postgres \
-                --dbname=barkada_restore -X -v ON_ERROR_STOP=1 <<SQL
-              DO \$verify\$
-              BEGIN
-                IF (SELECT count(*) FROM public.players) <> 6
-                   OR (SELECT count(*) FROM public.seasons) <> 1
-                   OR (SELECT count(*) FROM public.matches) <> 15 THEN
-                  RAISE EXCEPTION '\''Restored row counts differ from the pre-migration snapshot'\'';
-                END IF;
-                IF (SELECT last_value FROM public.players_id_seq) <> 9
-                   OR (SELECT last_value FROM public.seasons_id_seq) <> 1
-                   OR (SELECT last_value FROM public.matches_id_seq) <> 39 THEN
-                  RAISE EXCEPTION '\''Restored sequence values differ from the snapshot'\'';
-                END IF;
-                IF EXISTS (
-                  SELECT 1 FROM public.matches m
+              actual=$(psql --host=127.0.0.1 --port=5432 --username=postgres \
+                --dbname=barkada_restore -X -A -t -v ON_ERROR_STOP=1 -c "
+                  SELECT
+                    (SELECT count(*) FROM public.players)::text || '\''|'\'' ||
+                    (SELECT count(*) FROM public.seasons)::text || '\''|'\'' ||
+                    (SELECT count(*) FROM public.matches)::text || '\''|'\'' ||
+                    (SELECT last_value FROM public.players_id_seq)::text || '\''|'\'' ||
+                    (SELECT last_value FROM public.seasons_id_seq)::text || '\''|'\'' ||
+                    (SELECT last_value FROM public.matches_id_seq)::text
+                ")
+              if [ "$actual" != "6|1|15|9|1|39" ]; then
+                echo "Restored database row-count/sequence validation failed: $actual" >&2
+                exit 1
+              fi
+              invalid=$(psql --host=127.0.0.1 --port=5432 --username=postgres \
+                --dbname=barkada_restore -X -A -t -v ON_ERROR_STOP=1 -c "
+                  SELECT count(*) FROM public.matches m
                   LEFT JOIN public.players p1 ON p1.id=m.player1_id
                   LEFT JOIN public.players p2 ON p2.id=m.player2_id
                   LEFT JOIN public.players w ON w.id=m.winner_id
@@ -124,13 +125,12 @@ jobs:
                   WHERE p1.id IS NULL OR p2.id IS NULL OR w.id IS NULL OR s.id IS NULL
                     OR (m.player1_score > m.player2_score AND m.winner_id<>m.player1_id)
                     OR (m.player2_score > m.player1_score AND m.winner_id<>m.player2_id)
-                ) THEN
-                  RAISE EXCEPTION '\''Invalid match reference or winner after restoration'\'';
-                END IF;
-                RAISE NOTICE '\''PASS: application database backup restored and validated'\'';
-              END
-              \$verify\$;
-              SQL
+                ")
+              if [ "$invalid" != "0" ]; then
+                echo "Restore failed match consistency validation." >&2
+                exit 1
+              fi
+              echo "PASS: restore and integrity checks"
             '
 
           cd "$RUNNER_TEMP/barkada-backup"
